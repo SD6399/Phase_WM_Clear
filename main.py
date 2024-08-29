@@ -10,6 +10,7 @@ from PIL import Image, ImageFile
 from helper_methods import small2big, big2small, sort_spis, read_video
 from helper_methods import csv2list, bit_voting
 from reedsolomon import extract_RS, Nbit
+from scpetrcal_halftone import check_spatial2spectr
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -26,22 +27,22 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
 
     fi = math.pi / 2 / 255
     st_qr = cv2.imread(binary_image)
-    st_qr = cv2.cvtColor(st_qr, cv2.COLOR_RGB2YCrCb)
+    st_qr = cv2.cvtColor(st_qr, cv2.COLOR_RGB2YCrCb)[:, :, 0]
 
-    data_length = st_qr[:, :, 0].size
-    shuf_order = np.arange(data_length)
-
-    np.random.seed(42)
-    np.random.shuffle(shuf_order)
-
-    # Expand the binary image into a string
-    st_qr_1d = st_qr[:, :, 0].ravel()
-    shuffled_data = st_qr_1d[shuf_order]  # Shuffle the original data
-
-    # 1d-string in the image
-    pict = np.resize(shuffled_data, (1057, 1920))
-    # the last elements are uninformative. Therefore, we make zeros
-    pict[-1, 256 - 1920:] = 0
+    # data_length = st_qr[:, :, 0].size
+    # shuf_order = np.arange(data_length)
+    #
+    # np.random.seed(42)
+    # np.random.shuffle(shuf_order)
+    #
+    # # Expand the binary image into a string
+    # st_qr_1d = st_qr[:, :, 0].ravel()
+    # shuffled_data = st_qr_1d[shuf_order]  # Shuffle the original data
+    #
+    # # 1d-string in the image
+    # pict = np.resize(shuffled_data, (1057, 1920))
+    # # the last elements are uninformative. Therefore, we make zeros
+    # pict[-1, 256 - 1920:] = 0
 
     images = [img for img in os.listdir(folder_orig_image)
               if img.endswith(".png")]
@@ -57,15 +58,15 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
         # a = a.astype(float)
 
-        temp = fi * pict
+        temp = fi * st_qr
         # A*sin(m * teta + fi)
         wm = np.array((amplitude * np.sin(cnt * tt + temp)))
 
         # if my_i == 1:
         #     wm = np.where(wm>0,1,-1)
         # Embedding in the Y-channel
-        a[0:1057, :, 0] = np.where(np.float32(a[0:1057, :, 0] + wm) > 255, 255,
-                                   np.where(a[0:1057, :, 0] + wm < 0, 0, np.float32(a[0:1057, :, 0] + wm)))
+        a[0:512, 0:512, 0] = np.where(np.float32(a[0:512, 0:512, 0] + wm) > 255, 255,
+                                   np.where(a[0:512, 0:512, 0] + wm < 0, 0, np.float32(a[0:512, 0:512, 0] + wm)))
 
         # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
         #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
@@ -145,8 +146,7 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     # count = total_count
 
     # reading a shuffled object
-    shuf_order = read2list(r'D:/pythonProject/phase_wm\shuf.txt')
-    shuf_order = [eval(i) for i in shuf_order]
+
     # subtracting the average
     while cnt < count:
 
@@ -162,22 +162,22 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         # a1 = np.where(a < f1, f1 - a, 0)
         # a1 = a - f1
         # a1 = a[:, :, 0]
-        a1 = a1[:, :, 0]
-        res_1d = np.ravel(a1)[:256 - 1920]
-        start_qr = np.resize(res_1d, (size_wm, size_wm))
-
-        unshuf_order = np.zeros_like(shuf_order)
-        unshuf_order[shuf_order] = np.arange(start_qr.size)
-        unshuffled_data = np.ravel(start_qr)[unshuf_order]
-        matr_unshuf = np.resize(unshuffled_data, (size_wm, size_wm))
-        a = matr_unshuf
+        a1 = a1[0:512, 0:512, 0]
+        # res_1d = np.ravel(a1)[:256 - 1920]
+        # start_qr = np.resize(res_1d, (size_wm, size_wm))
+        #
+        # unshuf_order = np.zeros_like(shuf_order)
+        # unshuf_order[shuf_order] = np.arange(start_qr.size)
+        # unshuffled_data = np.ravel(start_qr)[unshuf_order]
+        # matr_unshuf = np.resize(unshuffled_data, (size_wm, size_wm))
+        a = a1
         # extraction of watermark
         # a = a1[20:1060, 440:1480, 0]
         g = np.copy(d)
         d = np.copy(f)
 
         if cnt == rand_fr:
-            f = np.copy(matr_unshuf)
+            f = np.copy(a1)
             d = np.ones((size_wm, size_wm))
 
         else:
@@ -264,34 +264,12 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         img = Image.fromarray(l_kadr.astype('uint8'))
         img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas/result" + str(cnt) + ".png")
 
-        l_kadr = io.imread(
-            r'D:/pythonProject/phase_wm\extract/after_normal_phas/result' + str(cnt) + '.png').astype(
-            float)
-        cp = big2small(l_kadr.copy())
+        if cnt % 20 == 19:
 
-        our_avg = np.mean(cp)
-        cp = np.where(cp > our_avg, 255, 0)
-
-        # cp = bit_voting(cp, Nbit)
-        imgc = Image.fromarray(cp.astype('uint8'))
-
-        imgc.save(
-            r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
-        # print("wm extract", cnt)
-        if cnt % 100 == 99:
-            v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
-            vot_sp.append(max(v, 1 - v))
-            extract_RS(cp,
-                       106, 127, Nbit)
-            stop_kadr1.append(max(compare(
-                r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png",
-                io.imread(PATH_IMG)),
-                1 - compare(
-                    r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(
-                        cnt) + ".png", io.imread(PATH_IMG))))
-            if cnt % 100 == 99:
-                print(tt, cnt, stop_kadr1)
-                print("after voting", tt, vot_sp)
+            spector = check_spatial2spectr(l_kadr)
+            stop_kadr1.append(compare(
+               spector,  io.imread("D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm.png")))
+            print(tt, cnt, stop_kadr1)
 
         cnt += 1
 
@@ -331,7 +309,7 @@ def generate_video(bitr, image_folder):
               f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
 
 
-def compare(path, orig_qr):
+def compare(myqr, orig_qr):
     """
      Comparing the extracted QR with the original one
     :param path: path to code for comparison
@@ -339,13 +317,19 @@ def compare(path, orig_qr):
     """
 
     # orig_qr = io.imread(r"data/RS_cod89x89.png")
+    orig_cut = np.zeros((65,65))
     orig_qr = np.where(orig_qr > 127, 255, 0)
-    small_qr = big2small(orig_qr)
+    orig_cut[:,:32]= orig_qr[1:66, 1:33]
+    orig_cut[:, 32:] = orig_qr[1:66, -33:]
+    # small_qr = big2small(orig_qr)
     # sr_matr = np.zeros((1424, 1424, 3))
-    myqr = io.imread(path)
+    # myqr = io.imread(path)
+    myqr_cut = np.zeros((65, 65))
     myqr = np.where(myqr > 127, 255, 0)
+    myqr_cut[:, :32] = myqr[1:66, 1:33]
+    myqr_cut[:, 32:] = myqr[1:66, -33:]
 
-    sr_matr = small_qr == myqr
+    sr_matr = orig_cut == myqr_cut
     k = np.count_nonzero(sr_matr)
     return k / sr_matr.size
 
@@ -386,21 +370,22 @@ if __name__ == '__main__':
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
-    bitr = 5
+    bitr = 50
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
-    PATH_IMG = r"D:/local_foldr/phase_wm_in_video/data/RS_cod89x89.png"
+    PATH_IMG = r"data/spatial_spectr_wm_65.png"
+    stop_kadr1 = []
     img_wm = io.imread(PATH_IMG)
+
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
     for teta in [2.9]:
         rand_k = 0
         vot_sp = []
-        stop_kadr1 = []
-        stop_kadr2 = []
-        stop_kadr1_bin = []
-        stop_kadr2_bin = []
+
+        # stop_kadr2 = []
+        # stop_kadr1_bin = []
+        # stop_kadr2_bin = []
 
         total_count = 2997
 

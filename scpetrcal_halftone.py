@@ -43,14 +43,14 @@ def check_spatial2spectr(qr_spatial):
     return my_ifft
 
 
-qr_spectr = io.imread("data/spectral_qr_65_65.png")
-spatial_qr = spectr_to_spatial(qr_spectr,512)
+# qr_spectr = io.imread("data/spectral_qr_65_65.png")
+# spatial_qr = spectr_to_spatial(qr_spectr,512)
 # img1 = Image.fromarray(spatial_qr.astype('uint8'))
 # img1.save(r"data/spatial_spectr_wm_65.png")
 
-qr_spatal = io.imread("data/spatial_spectr_wm_65.png")
+# qr_spatal = io.imread("data/spatial_spectr_wm_65.png")
 
-check_qr = check_spatial2spectr(qr_spatal)
-img2 = Image.fromarray(check_qr.astype('uint8'))
-img2.save(r"data/check_ifft_wm.png")
+# check_qr = check_spatial2spectr(qr_spatal)
+# img2 = Image.fromarray(check_qr.astype('uint8'))
+# img2.save(r"data/check_ifft_wm.png")
 
