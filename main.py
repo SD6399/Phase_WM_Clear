@@ -1,4 +1,6 @@
 import math
+
+import matplotlib.pyplot as plt
 from skimage import io
 # from reedsolo import RSCodec
 from skimage.exposure import histogram
@@ -8,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageFile
 # from qrcode_1 import read_qr, correct_qr
 from helper_methods import small2big, big2small, sort_spis, read_video
-from helper_methods import csv2list, bit_voting
+from helper_methods import csv2list, bit_voting, compare_qr
 from reedsolomon import extract_RS, Nbit
 from scpetrcal_halftone import check_spatial2spectr
 
@@ -66,7 +68,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         #     wm = np.where(wm>0,1,-1)
         # Embedding in the Y-channel
         a[0:512, 0:512, 0] = np.where(np.float32(a[0:512, 0:512, 0] + wm) > 255, 255,
-                                   np.where(a[0:512, 0:512, 0] + wm < 0, 0, np.float32(a[0:512, 0:512, 0] + wm)))
+                                      np.where(a[0:512, 0:512, 0] + wm < 0, 0, np.float32(a[0:512, 0:512, 0] + wm)))
 
         # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
         #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
@@ -77,7 +79,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         img_path = os.path.join(folder_to_save)
         cv2.imwrite(img_path + "frame" + str(cnt) + ".png", tmp)
 
-        if cnt % 300 == 0:
+        if cnt % 700 == 0:
             print("wm embed", cnt)
 
         cnt += 1
@@ -133,12 +135,13 @@ def extract(alf, beta, tt, size_wm, rand_fr):
 
         np.clip(f1, 0, 255, out=f1)
         img = Image.fromarray(f1.astype('uint8'))
-        if cnt % 300 == 0:
+        if cnt % 700 == 0:
             print("first smooth", cnt)
         img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
 
         cnt += 1
 
+    variance = []
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -261,29 +264,34 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         fi_tmp[fi_tmp > np.pi] = np.pi
         l_kadr = fi_tmp * 255 / np.pi
 
+        l_kadr = 255 * (l_kadr - np.min(l_kadr)) / (np.max(l_kadr) - np.min(l_kadr))
+
         img = Image.fromarray(l_kadr.astype('uint8'))
         img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas/result" + str(cnt) + ".png")
-
+        variance.append(np.var(l_kadr - img_wm))
         if cnt % 20 == 19:
 
             spector = check_spatial2spectr(l_kadr)
-            stop_kadr1.append(compare(
-               spector,  io.imread("D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm.png")))
-            print(tt, cnt, stop_kadr1)
+            stop_kadr1.append(compare_qr(
+                spector, io.imread("D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm.png")))
+            if cnt % 500 == 499:
+                print(ampl, cnt, stop_kadr1)
 
         cnt += 1
 
-    return stop_kadr1[-1]
+    return variance, stop_kadr1
 
 
 def generate_video(bitr, image_folder):
     """
     Sequence of frames transform to compress video
+    :param image_folder: folder for output frames
+
     :param bitr: bitrate of output video
     """
 
     video_name = 'need_video.mp4'
-    os.chdir(r"D:/pythonProject/phase_wm\frames_after_emb")
+    os.chdir(image_folder)
 
     images = [img for img in os.listdir(image_folder)
               if img.endswith(".png")]
@@ -299,7 +307,7 @@ def generate_video(bitr, image_folder):
         # if cnt % 300 == 0:
 
         video.write(cv2.imread(os.path.join(image_folder, image)))
-        if cnt % 299 == 0:
+        if cnt % 799 == 0:
             print(cnt)
         cnt += 1
     cv2.destroyAllWindows()
@@ -307,31 +315,6 @@ def generate_video(bitr, image_folder):
 
     os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
               f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
-
-
-def compare(myqr, orig_qr):
-    """
-     Comparing the extracted QR with the original one
-    :param path: path to code for comparison
-    :return: percentage of similarity
-    """
-
-    # orig_qr = io.imread(r"data/RS_cod89x89.png")
-    orig_cut = np.zeros((65,65))
-    orig_qr = np.where(orig_qr > 127, 255, 0)
-    orig_cut[:,:32]= orig_qr[1:66, 1:33]
-    orig_cut[:, 32:] = orig_qr[1:66, -33:]
-    # small_qr = big2small(orig_qr)
-    # sr_matr = np.zeros((1424, 1424, 3))
-    # myqr = io.imread(path)
-    myqr_cut = np.zeros((65, 65))
-    myqr = np.where(myqr > 127, 255, 0)
-    myqr_cut[:, :32] = myqr[1:66, 1:33]
-    myqr_cut[:, 32:] = myqr[1:66, -33:]
-
-    sr_matr = orig_cut == myqr_cut
-    k = np.count_nonzero(sr_matr)
-    return k / sr_matr.size
 
 
 def vot_by_variance(path_imgs, start, end, treshold):
@@ -355,7 +338,7 @@ def vot_by_variance(path_imgs, start, end, treshold):
     sum_matrix[sum_matrix > count * 0.5] = 255
     img1 = Image.fromarray(sum_matrix.astype('uint8'))
     img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
-    comp = compare(r"D:/pythonProject/phase_wm\voting" + ".png", io.imread(PATH_IMG))
+    comp = compare_qr(r"D:/pythonProject/phase_wm\voting" + ".png", io.imread(PATH_IMG))
     print(count)
     print(comp)
     # extract_RS(sum_matrix, rsc, Nbit)
@@ -365,24 +348,25 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
 
-    l_fr = []
-    ampl = 3
+    # l_fr = []
+    ampl = 1
+    teta = 2.9
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
-    bitr = 50
+    bitr = 58
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"data/spatial_spectr_wm_65.png"
-    stop_kadr1 = []
+    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_wm_65.png"
+
     img_wm = io.imread(PATH_IMG)
 
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
-    for teta in [2.9]:
+    for ampl in [1, 2, 3]:
         rand_k = 0
         vot_sp = []
-
+        stop_kadr1 = []
         # stop_kadr2 = []
         # stop_kadr1_bin = []
         # stop_kadr2_bin = []
@@ -391,6 +375,16 @@ if __name__ == '__main__':
 
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
         generate_video(bitr, output_folder)
-        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
+        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k)
 
-    print("Acc-cy of last frame", l_fr)
+        # print("Variance", var_list)
+        with open(r'D:/pythonProject/Phase_WM_Clear\data/var_list_' + str(ampl) + '.txt', 'w') as file:
+            for var in var_list:
+                file.write(str(var) + "\n")
+
+        with open(r'D:/pythonProject/Phase_WM_Clear\data/acc_list_' + str(ext_values) + '.txt', 'w') as file:
+            for val in ext_values:
+                file.write(str(val)+"\n")
+    # plt.plot(var_list)
+    # plt.grid(True)
+    # plt.show()
