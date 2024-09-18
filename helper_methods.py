@@ -305,6 +305,7 @@ def compare_qr(myqr, orig_qr):
     k = np.count_nonzero(sr_matr)
     return k / sr_matr.size
 
+
 # create_gray_bg()
 # compar_before_after_saving("C:/Users/user/PycharmProjects/phase_wm/frames_after_emb", "C:/Users/user/PycharmProjects/phase_wm/extract")
 
@@ -471,23 +472,40 @@ plt.show()
 # cv2.destroyAllWindows()
 # video.release()
 
-"""
-list_v = [1, 2, 3, 5]
-for i in list_v:
-    my_file = open("data/var_list_" + str(i) + ".txt", "r")
 
+
+
+"""
+list_v = [1, 2, 3]
+for i in list_v:
+    my_file = open("data/var_list_" + str(i) + "no_smooth__bitrorig.txt", "r")
+    my_file1 = open("data/acc_list_" + str(i) + "no_smooth__bitrorig.txt", "r")
     # reading the file
     data = my_file.read()
 
     # replacing end of line('/n') with ' ' and
     # splitting the text it further when '.' is seen.
-    data_into_list = data.replace('\n', ' ').split(".")
-    list_split = [int(words) for segments in data_into_list for words in segments.split()]
-    plt.plot(list_split, label="A =" + str(i))
-plt.title("Дисперсия между изображениями")
+    data_into_list = data.replace('\n', ' ').split(" ")
+    list_split = np.array([float(words) for segments in data_into_list for words in segments.split()])
+    list_split[list_split > 1200] = 1200
+    list_split /= 1200
+    plt.plot(list_split, label="Change in variance A =" + str(i))
+
+    data1 = my_file1.read()
+    data_into_list1 = data1.replace('\n', ' ').split(" ")
+    list_split1 = np.array([float(words) for segments in data_into_list1 for words in segments.split()])
+
+    # print(len(list_split))
+    plt.plot(range(19, 3000, 20), list_split1, label="Accuracy. A =" + str(i))
+# plt.title("Битрейт = 20.")
 plt.legend()
 plt.show()
 """
+
+
+
+
+
 # orig_wave = io.imread(r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_wm_65.png").astype(int)
 # dif_val = []
 # qr_acc = []
