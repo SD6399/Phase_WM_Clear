@@ -1,7 +1,8 @@
 from PIL import Image
 import numpy as np
 from skimage import io
-
+from scipy.fftpack import fft2, fftshift
+from skimage import data, color
 
 def spectr_to_spatial(qr,size_WM):
 
@@ -42,6 +43,17 @@ def check_spatial2spectr(qr_spatial):
     my_ifft = 255 * (ifft_r - np.min(ifft_r)) / (np.max(ifft_r) - np.min(ifft_r))
     return my_ifft
 
+
+def energy_spector(image):
+    F = fft2(image)
+
+    # Спектральная плотность мощности
+    Pxx = np.abs(F) ** 2
+
+    # Сдвиг нулевой частоты в центр
+    Pxx_shifted = fftshift(Pxx)
+
+    return Pxx_shifted
 
 # qr_spectr = io.imread("data/spectral_qr_65_65.png")
 # spatial_qr = spectr_to_spatial(qr_spectr,512)
