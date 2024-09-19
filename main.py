@@ -111,42 +111,46 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     :param rand_fr: the frame from which the extraction begins
     :return: the path to the final image
     """
-    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
+    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\need_video.mp4'
 
-    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
 
-    while cnt < total_count:
-        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
-
-        d1 = f1
-        if cnt == rand_fr:
-            f1 = arr.astype('float32')
-            d1 = np.zeros((1080, 1920))
-        # elif cnt == change_sc[scene-1] + 1:
-        else:
-            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-        # else:
-        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-
-        np.clip(f1, 0, 255, out=f1)
-        img = Image.fromarray(f1.astype('uint8'))
-        if cnt % 700 == 0:
-            print("first smooth", cnt)
-        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-
-        cnt += 1
+    # while cnt < total_count:
+    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+    #
+    #     d1 = f1
+    #     if cnt == rand_fr:
+    #         f1 = arr.astype('float32')
+    #         d1 = np.zeros((1080, 1920))
+    #     # elif cnt == change_sc[scene-1] + 1:
+    #     else:
+    #         f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+    #     # else:
+    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+    #
+    #     np.clip(f1, 0, 255, out=f1)
+    #     img = Image.fromarray(f1.astype('uint8'))
+    #     if cnt % 700 == 0:
+    #         print("first smooth", cnt)
+    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+    #
+    #     cnt += 1
 
     variance = []
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     d = g.copy()
-    # count = total_count
+
+    g2 = np.asarray([])
+    f2 = g.copy()
+    d2 = g.copy()
+    count = total_count
 
     # reading a shuffled object
 
@@ -154,18 +158,17 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     while cnt < count:
 
         arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
+        # arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/frame" + str(cnt) + ".png"))
         a = cv2.cvtColor(arr, cv2.COLOR_BGR2YCrCb)
-        # a = a[:, :, 0]
 
         f1 = np.float32(
             cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
-        # # f1=np.float32(f1)
         f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
         a1 = np.where(a < f1, f1 - a, a - f1)
-        # a1 = np.where(a < f1, f1 - a, 0)
-        # a1 = a - f1
-        # a1 = a[:, :, 0]
+
         a1 = a1[0:512, 0:512, 0]
+        # a1 = a[0:512, 0:512, 0]
+
         # res_1d = np.ravel(a1)[:256 - 1920]
         # start_qr = np.resize(res_1d, (size_wm, size_wm))
         #
@@ -190,8 +193,42 @@ def extract(alf, beta, tt, size_wm, rand_fr):
             else:
                 f = 2 * beta * np.cos(tt) * np.float32(d) - (beta ** 2) * np.float32(g) + np.float32(a)
 
+
+        # if cnt == rand_fr:
+        #     f2 = np.copy(a1)
+        #     d2 = np.ones((size_wm, size_wm))
+        #
+        # else:
+        #     if cnt == rand_fr + 1:
+        #         f2 = 2 * beta * np.cos(tt) * np.float32(d2) + np.float32(f)
+        #
+        #     else:
+        #         f2 = 2 * beta * np.cos(tt) * np.float32(d2) - (beta ** 2) * np.float32(g2) + np.float32(f)
+
         yc = np.float32(f) - beta * np.cos(tt) * np.float32(d)
         ys = beta * np.sin(tt) * np.float32(d)
+
+        """
+        g2 = np.copy(d2)
+        d2 = np.copy(g2)
+
+        tmp_signal = np.zeros((512,512),dtype=np.complex_)
+        tmp_signal.real = yc
+        tmp_signal.imag = ys
+
+        if cnt == rand_fr:
+            f2 = np.copy(a1)
+            d2 = np.ones((size_wm, size_wm))
+
+        else:
+            if cnt == rand_fr + 1:
+                f2 = 2 * beta * np.cos(tt) * np.float32(d2) + np.float32(tmp_signal)
+
+            else:
+                f2 = 2 * beta * np.cos(tt) * np.float32(d2) - (beta ** 2) * np.float32(g2) + np.float32(tmp_signal)
+        
+        """
+
         c = np.cos(tt * cnt) * np.float32(yc) + np.sin(tt * cnt) * np.float32(ys)
         s = np.cos(tt * cnt) * np.float32(ys) - np.sin(tt * cnt) * np.float32(yc)
 
@@ -313,8 +350,9 @@ def generate_video(bitr, image_folder):
     cv2.destroyAllWindows()
     video.release()
 
-    os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
-              f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+    if bitr != "orig":
+        os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
+                  f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
 
 
 def vot_by_variance(path_imgs, start, end, treshold):
@@ -354,7 +392,7 @@ if __name__ == '__main__':
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
-    bitr = 58
+    bitr = "orig"
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_wm_65.png"
@@ -363,7 +401,7 @@ if __name__ == '__main__':
 
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
-    for ampl in [1, 2, 3]:
+    for ampl in [3]:
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -373,18 +411,22 @@ if __name__ == '__main__':
 
         total_count = 2997
 
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video(bitr, output_folder)
+        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        # generate_video(bitr, output_folder)
         var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k)
 
         # print("Variance", var_list)
-        with open(r'D:/pythonProject/Phase_WM_Clear\data/var_list_' + str(ampl) + '.txt', 'w') as file:
+        with open(
+                r'D:/pythonProject/Phase_WM_Clear\data/var_list_no_smooth_' + str(ampl) + '_bitr' + str(bitr) + '.txt',
+                'w') as file:
             for var in var_list:
                 file.write(str(var) + "\n")
 
-        with open(r'D:/pythonProject/Phase_WM_Clear\data/acc_list_' + str(ext_values) + '.txt', 'w') as file:
+        with open(
+                r'D:/pythonProject/Phase_WM_Clear\data/acc_list_no_smooth_' + str(ampl) + '_bitr' + str(bitr) + '.txt',
+                'w') as file:
             for val in ext_values:
-                file.write(str(val)+"\n")
+                file.write(str(val) + "\n")
     # plt.plot(var_list)
     # plt.grid(True)
     # plt.show()
