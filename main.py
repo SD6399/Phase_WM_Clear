@@ -407,7 +407,7 @@ if __name__ == '__main__':
 
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
-    for ampl in [1]:
+    for ampl in [2,3]:
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -423,13 +423,13 @@ if __name__ == '__main__':
 
         # print("Variance", var_list)
         with open(
-                r'D:/pythonProject/Phase_WM_Clear\data/var_list_no_smooth_' + str(ampl) + '_bitr' + str(bitr) + '.txt',
+                r'D:/pythonProject/Phase_WM_Clear\data/var_list_no_smooth_2filter' + str(ampl) + '_bitr' + str(bitr) + '.txt',
                 'w') as file:
             for var in var_list:
                 file.write(str(var) + "\n")
 
         with open(
-                r'D:/pythonProject/Phase_WM_Clear\data/acc_list_no_smooth_' + str(ampl) + '_bitr' + str(bitr) + '.txt',
+                r'D:/pythonProject/Phase_WM_Clear\data/acc_list_no_smooth_2filter' + str(ampl) + '_bitr' + str(bitr) + '.txt',
                 'w') as file:
             for val in ext_values:
                 file.write(str(val) + "\n")

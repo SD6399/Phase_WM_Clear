@@ -50,10 +50,11 @@ def energy_spector(image):
     # Спектральная плотность мощности
     Pxx = np.abs(F) ** 2
 
-    # Сдвиг нулевой частоты в центр
-    Pxx_shifted = fftshift(Pxx)
+    ifft = np.fft.ifft2(Pxx)
 
-    return Pxx_shifted
+    ifft = np.abs(ifft) / F.size
+    norm_eval = 255 * (ifft - np.min(ifft)) / (np.max(ifft) - np.min(ifft))
+    return norm_eval
 
 # qr_spectr = io.imread("data/spectral_qr_65_65.png")
 # spatial_qr = spectr_to_spatial(qr_spectr,512)

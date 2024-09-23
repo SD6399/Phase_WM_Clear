@@ -473,13 +473,11 @@ plt.show()
 # video.release()
 
 
-
-
-"""
 list_v = [1, 2, 3]
 for i in list_v:
-    my_file = open("data/var_list_" + str(i) + "no_smooth__bitrorig.txt", "r")
-    my_file1 = open("data/acc_list_" + str(i) + "no_smooth__bitrorig.txt", "r")
+    my_file = open("data/var_list_no_smooth_2filter%d_bitrorig.txt" % i, "r")
+    # my_file1 = open("data/acc_list_no_smooth_2filter%d_bitrorig.txt" % i, "r")
+    my_file2 = open("data/var_list_%d_bitrorig.txt" %i, "r")
     # reading the file
     data = my_file.read()
 
@@ -487,40 +485,58 @@ for i in list_v:
     # splitting the text it further when '.' is seen.
     data_into_list = data.replace('\n', ' ').split(" ")
     list_split = np.array([float(words) for segments in data_into_list for words in segments.split()])
-    list_split[list_split > 1200] = 1200
-    list_split /= 1200
-    plt.plot(list_split, label="Change in variance A =" + str(i))
+    list_split[list_split > 1000] = 1000
+    # list_split /= 1200
+    plt.plot(list_split, label="Two filters. Variance A =" + str(i))
 
-    data1 = my_file1.read()
-    data_into_list1 = data1.replace('\n', ' ').split(" ")
-    list_split1 = np.array([float(words) for segments in data_into_list1 for words in segments.split()])
+    # data1 = my_file1.read()
+    # data_into_list1 = data1.replace('\n', ' ').split(" ")
+    # list_split1 = np.array([float(words) for segments in data_into_list1 for words in segments.split()])
 
+    data2 = my_file2.read()
+    data_into_list2 = data2.replace('\n', ' ').split(" ")
+    list_split2 = np.array([float(words) for segments in data_into_list2 for words in segments.split()])
+    list_split2[list_split2 > 1000] = 1000
     # print(len(list_split))
-    plt.plot(range(19, 3000, 20), list_split1, label="Accuracy. A =" + str(i))
-# plt.title("Битрейт = 20.")
+    # plt.plot(range(19, 2990, 20), list_split1, label="Accuracy. Two filter" + str(i))
+    plt.plot(list_split2, label="One filter. Variance A =" + str(i))
+    # plt.title("Битрейт = 20.")
 plt.legend()
 plt.show()
-"""
 
 
+from scpetrcal_halftone import energy_spector
 
 
+def check_energ_spector():
+    orig_wave = io.imread(r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_wm_65.png").astype(int)
+    dif_val = []
+    qr_acc = []
+    cnt = 1
+    extr_wave = io.imread("D:/pythonProject/phase_wm/extract/after_normal_phas/result" + str(2950) + ".png").astype(int)
+    for i in range(2951, 3000, 1):
+        extr_wave += io.imread("D:/pythonProject/phase_wm/extract/after_normal_phas/result" + str(i) + ".png").astype(
+            int)
+        cnt += 1
+        # extr_wave1 = io.imread("D:/pythonProject/phase_wm/extract/after_normal_phas/result" + str(i - 1) + ".png").astype(
+        #     int)
 
-# orig_wave = io.imread(r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_wm_65.png").astype(int)
-# dif_val = []
-# qr_acc = []
-# for i in range(137, 3000):
-#     extr_wave = io.imread("D:/pythonProject/phase_wm/extract/after_normal_phas/result" + str(i) + ".png").astype(int)
-#     # extr_wave1 = io.imread("D:/pythonProject/phase_wm/extract/after_normal_phas/result" + str(i - 1) + ".png").astype(
-#     #     int)
-#     dif_img = orig_wave - extr_wave
-#     spector = check_spatial2spectr(extr_wave)
-#     qr_acc.append(compare_qr(
-#         spector, io.imread("data/check_ifft_wm.png")))
-#     dif_val.append(np.var(dif_img))
-#
-# dif_val = np.array(dif_val)
-# dif_val /= np.max(dif_val)
-# plt.plot(dif_val)
-# plt.plot(qr_acc)
-# plt.show()
+        # spector = check_spatial2spectr(extr_wave)
+        # qr_acc.append(compare_qr(
+        #     spector, io.imread("data/check_ifft_wm.png")))
+        # dif_val.append(np.var(dif_img))
+
+    dif_img = 128 + orig_wave - extr_wave / cnt
+
+    img2 = Image.fromarray(dif_img.astype('uint8'))
+    img2.save(r"data/diff_extract_img.png")
+
+    energ = energy_spector(dif_img)
+
+    img2 = Image.fromarray(energ.astype('uint8'))
+    img2.save(r"data/energ_spector_diff_img.png")
+    dif_val = np.array(dif_val)
+    dif_val /= np.max(dif_val)
+    plt.plot(dif_val)
+    plt.plot(qr_acc)
+    plt.show()
