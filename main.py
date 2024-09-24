@@ -110,39 +110,43 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
-    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    #count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
 
-    while cnt < total_count:
-        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
-
-        d1 = f1
-        if cnt == rand_fr:
-            f1 = arr.astype('float32')
-            d1 = np.zeros((1080, 1920))
-        # elif cnt == change_sc[scene-1] + 1:
-        else:
-            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-        # else:
-        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-
-        np.clip(f1, 0, 255, out=f1)
-        img = Image.fromarray(f1.astype('uint8'))
-        if cnt % 300 == 0:
-            print("first smooth", cnt)
-        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-
-        cnt += 1
+    # while cnt < total_count:
+    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+    #
+    #     d1 = f1
+    #     if cnt == rand_fr:
+    #         f1 = arr.astype('float32')
+    #         d1 = np.zeros((1080, 1920))
+    #     # elif cnt == change_sc[scene-1] + 1:
+    #     else:
+    #         f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+    #     # else:
+    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+    #
+    #     np.clip(f1, 0, 255, out=f1)
+    #     img = Image.fromarray(f1.astype('uint8'))
+    #     if cnt % 300 == 0:
+    #         print("first smooth", cnt)
+    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+    #
+    #     cnt += 1
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     d = g.copy()
-    # count = total_count
+    count = total_count
+
+    g2 = np.zeros((1424,1424), dtype=np.complex_)
+    f2 = np.zeros((1424,1424), dtype=np.complex_)
+    d2 = np.zeros((1424,1424), dtype=np.complex_)
 
     # reading a shuffled object
     shuf_order = read2list(r'D:/pythonProject/phase_wm\shuf.txt')
@@ -189,6 +193,32 @@ def extract(alf, beta, tt, size_wm, rand_fr):
 
         yc = np.float32(f) - beta * np.cos(tt) * np.float32(d)
         ys = beta * np.sin(tt) * np.float32(d)
+
+        # g2 = np.copy(d2)
+        # d2 = np.copy(g2)
+        #
+        # tmp_signal = np.zeros((1424, 1424), dtype=np.complex_)
+        # tmp_signal.real = yc
+        # tmp_signal.imag = ys
+        #
+        # if cnt == rand_fr:
+        #     f2 = tmp_signal
+        #     d2 = np.ones((size_wm, size_wm), dtype=np.complex_)
+        #     d2.imag = np.ones((size_wm, size_wm))
+        #
+        # else:
+        #     if cnt == rand_fr + 1:
+        #         f2.real = 2 * beta * np.cos(tt) * np.float32(d2.real) + np.float32(tmp_signal.real)
+        #         f2.imag = 2 * beta * np.cos(tt) * np.float32(d2.imag) + np.float32(tmp_signal.imag)
+        #     else:
+        #         f2.real = 2 * beta * np.cos(tt) * np.float32(d2.real) - (beta ** 2) * np.float32(g2.real) + np.float32(
+        #             tmp_signal.real)
+        #         f2.imag = 2 * beta * np.cos(tt) * np.float32(d2.imag) - (beta ** 2) * np.float32(g2.imag) + np.float32(
+        #             tmp_signal.imag)
+        #
+        # c = np.cos(tt * cnt) * np.float32(f2.real) + np.sin(tt * cnt) * np.float32(f2.imag)
+        # s = np.cos(tt * cnt) * np.float32(f2.imag) - np.sin(tt * cnt) * np.float32(f2.real)
+
         c = np.cos(tt * cnt) * np.float32(yc) + np.sin(tt * cnt) * np.float32(ys)
         s = np.cos(tt * cnt) * np.float32(ys) - np.sin(tt * cnt) * np.float32(yc)
 
@@ -207,6 +237,8 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         wm[wm < 0] = 0
 
         a1 = wm
+
+
         # # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
         # img = Image.fromarray(big2small(a1).astype('uint8'))
         # img.save(r'D:/pythonProject/phase_wm\extract/wm/result' + str(cnt) + '.png')
@@ -382,11 +414,11 @@ def vot_by_variance(path_imgs, start, end, treshold):
 if __name__ == '__main__':
 
     l_fr = []
-    ampl = 3
+    ampl = 1
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
-    bitr = 5
+    bitr = 10
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
@@ -404,8 +436,8 @@ if __name__ == '__main__':
 
         total_count = 2997
 
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video(bitr, output_folder)
+        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        #generate_video(bitr, output_folder)
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
 
     print("Acc-cy of last frame", l_fr)
