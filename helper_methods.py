@@ -280,7 +280,7 @@ def decode_wm(wm, path_to_save):
     return decoding_qr
 
 
-def compare_qr(myqr, orig_qr):
+def compare_qr(myqr, orig_qr, shift):
     """
      Comparing the extracted QR with the original one
     :param path: path to code for comparison
@@ -290,15 +290,15 @@ def compare_qr(myqr, orig_qr):
     # orig_qr = io.imread(r"data/RS_cod89x89.png")
     orig_cut = np.zeros((65, 65))
     orig_qr = np.where(orig_qr > 127, 255, 0)
-    orig_cut[:, :32] = orig_qr[1:66, 1:33]
-    orig_cut[:, 32:] = orig_qr[1:66, -33:]
+    orig_cut[:, :32] = orig_qr[1 + shift:66 + shift, 1 + shift:33 + shift]
+    orig_cut[:, 32:] = orig_qr[1 + shift:66 + shift, -33 - shift:-shift]
     # small_qr = big2small(orig_qr)
     # sr_matr = np.zeros((1424, 1424, 3))
     # myqr = io.imread(path)
     myqr_cut = np.zeros((65, 65))
 
-    myqr_cut[:, :32] = myqr[1:66, 1:33]
-    myqr_cut[:, 32:] = myqr[1:66, -33:]
+    myqr_cut[:, :32] = myqr[1 + shift:66 + shift, 1 + shift:33 + shift]
+    myqr_cut[:, 32:] = myqr[1 + shift:66 + shift, -33 - shift:-shift]
     myqr_cut = np.where(myqr_cut > np.mean(myqr_cut), 255, 0)
 
     sr_matr = orig_cut == myqr_cut
@@ -473,32 +473,32 @@ plt.show()
 # video.release()
 
 
-list_v = [1, 2, 3]
+list_v = [50, 100]
 for i in list_v:
-    my_file = open("data/var_list_no_smooth_2filter%d_bitrorig.txt" % i, "r")
+    my_file1 = open("data/acc_list_no_smooth_on_%d_center_2_bitr20.txt" % i, "r")
     # my_file1 = open("data/acc_list_no_smooth_2filter%d_bitrorig.txt" % i, "r")
-    my_file2 = open("data/var_list_%d_bitrorig.txt" %i, "r")
+    my_file2 = open("data/var_list_no_smooth_on_%d_center_2_bitr20.txt" % i, "r")
     # reading the file
-    data = my_file.read()
+    # data = my_file.read()
+    #
+    # # replacing end of line('/n') with ' ' and
+    # # splitting the text it further when '.' is seen.
+    # data_into_list = data.replace('\n', ' ').split(" ")
+    # list_split = np.array([float(words) for segments in data_into_list for words in segments.split()])
+    # list_split[list_split > 1000] = 1000
+    # # list_split /= 1200
+    # plt.plot(list_split, label="Two filters. Variance A =" + str(i))
 
-    # replacing end of line('/n') with ' ' and
-    # splitting the text it further when '.' is seen.
-    data_into_list = data.replace('\n', ' ').split(" ")
-    list_split = np.array([float(words) for segments in data_into_list for words in segments.split()])
-    list_split[list_split > 1000] = 1000
-    # list_split /= 1200
-    plt.plot(list_split, label="Two filters. Variance A =" + str(i))
-
-    # data1 = my_file1.read()
-    # data_into_list1 = data1.replace('\n', ' ').split(" ")
-    # list_split1 = np.array([float(words) for segments in data_into_list1 for words in segments.split()])
+    data1 = my_file1.read()
+    data_into_list1 = data1.replace('\n', ' ').split(" ")
+    list_split1 = np.array([float(words) for segments in data_into_list1 for words in segments.split()])
 
     data2 = my_file2.read()
     data_into_list2 = data2.replace('\n', ' ').split(" ")
     list_split2 = np.array([float(words) for segments in data_into_list2 for words in segments.split()])
     list_split2[list_split2 > 1000] = 1000
-    # print(len(list_split))
-    # plt.plot(range(19, 2990, 20), list_split1, label="Accuracy. Two filter" + str(i))
+    print(len(list_split2),len(list_split1),len(range(19, 2980, 20)))
+    plt.plot(range(19, 2980, 20), list_split1, label="Accuracy. Two filter" + str(i))
     plt.plot(list_split2, label="One filter. Variance A =" + str(i))
     # plt.title("Битрейт = 20.")
 plt.legend()
