@@ -11,7 +11,6 @@ from PIL import Image, ImageFile
 # from qrcode_1 import read_qr, correct_qr
 from helper_methods import small2big, big2small, sort_spis, read_video
 from helper_methods import csv2list, bit_voting, compare_qr
-from reedsolomon import extract_RS, Nbit
 from scpetrcal_halftone import check_spatial2spectr
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -67,9 +66,8 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         # if my_i == 1:
         #     wm = np.where(wm>0,1,-1)
         # Embedding in the Y-channel
-        for row_ind in range(0, a.shape[0]-512, 512):
-            for col_ind in range(0, a.shape[1]-512, 512):
-
+        for row_ind in range(0, a.shape[0] - 512, 512):
+            for col_ind in range(0, a.shape[1] - 512, 512):
                 a[row_ind:row_ind + 512, col_ind:col_ind + 512, 0] = np.where(
                     np.float32(a[row_ind:row_ind + 512, col_ind:col_ind + 512, 0] + wm) > 255,
                     255,
@@ -121,33 +119,33 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
-    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
     #
-    # while cnt < total_count:
-    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
-    #
-    #     d1 = f1
-    #     if cnt == rand_fr:
-    #         f1 = arr.astype('float32')
-    #         d1 = np.zeros((1080, 1920))
-    #     # elif cnt == change_sc[scene-1] + 1:
-    #     else:
-    #         f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-    #     # else:
-    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-    #
-    #     np.clip(f1, 0, 255, out=f1)
-    #     img = Image.fromarray(f1.astype('uint8'))
-    #     if cnt % 700 == 0:
-    #         print("first smooth", cnt)
-    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-    #
-    #     cnt += 1
+    while cnt < total_count:
+        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+
+        d1 = f1
+        if cnt == rand_fr:
+            f1 = arr.astype('float32')
+            d1 = np.zeros((1080, 1920))
+        # elif cnt == change_sc[scene-1] + 1:
+        else:
+            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+        # else:
+        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+
+        np.clip(f1, 0, 255, out=f1)
+        img = Image.fromarray(f1.astype('uint8'))
+        if cnt % 700 == 0:
+            print("first smooth", cnt)
+        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+
+        cnt += 1
 
     variance = []
     cnt = int(rand_fr)
@@ -155,10 +153,10 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     f = g.copy()
     d = g.copy()
 
-    g2 = np.zeros((512, 512), dtype=np.complex_)
-    f2 = np.zeros((512, 512), dtype=np.complex_)
-    d2 = np.zeros((512, 512), dtype=np.complex_)
-    count = total_count
+    g2 = np.zeros((1024, 1536), dtype=np.complex_)
+    f2 = np.zeros((1024, 1536), dtype=np.complex_)
+    d2 = np.zeros((1024, 1536), dtype=np.complex_)
+    # count = total_count
 
     # reading a shuffled object
 
@@ -174,7 +172,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
         f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
         a1 = np.where(a < f1, f1 - a, a - f1)
 
-        a1 = a1[0:512, 0:512, 0]
+        a1 = a1[0:1024, 0:1536, 0]
         # a1 = a[0:512, 0:512, 0]
 
         # res_1d = np.ravel(a1)[:256 - 1920]
@@ -192,7 +190,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
 
         if cnt == rand_fr:
             f = np.copy(a1)
-            d = np.ones((size_wm, size_wm))
+            d = np.ones((1024, 1536))
 
         else:
             if cnt == rand_fr + 1:
@@ -218,14 +216,14 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
         g2 = np.copy(d2)
         d2 = np.copy(g2)
 
-        tmp_signal = np.zeros((512, 512), dtype=np.complex_)
+        tmp_signal = np.zeros((1024, 1536), dtype=np.complex_)
         tmp_signal.real = yc
         tmp_signal.imag = ys
 
         if cnt == rand_fr:
             f2 = tmp_signal
-            d2 = np.ones((size_wm, size_wm), dtype=np.complex_)
-            d2.imag = np.ones((size_wm, size_wm))
+            d2 = np.ones((1024, 1536), dtype=np.complex_)
+            d2.imag = np.ones((1024, 1536))
 
         else:
             if cnt == rand_fr + 1:
@@ -316,17 +314,30 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
 
         img = Image.fromarray(l_kadr.astype('uint8'))
         img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas/result" + str(cnt) + ".png")
-        variance.append(np.var(l_kadr - img_wm))
-        if cnt % 20 == 19:
 
-            spector = check_spatial2spectr(l_kadr)
-            stop_kadr1.append(compare_qr(
-                spector, io.imread(r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm_shift_%d.png" % shift_qr),
-                shift_qr), )
+        test_var = np.zeros((512, 512))
+        for row_ind in range(0, l_kadr.shape[0] - 512, 512):
+            for col_ind in range(0, l_kadr.shape[1] - 512, 512):
+                test_var += l_kadr[row_ind:row_ind + 512, col_ind:col_ind + 512] / 6
+
+        variance.append(np.var(test_var - img_wm))
+        if cnt % 20 == 19:
+            # ser6 = []
+            spector = np.zeros((512, 512))
+            for row_ind in range(0, l_kadr.shape[0] , 512):
+                for col_ind in range(0, l_kadr.shape[1] , 512):
+                    # print(row_ind,col_ind,l_kadr.shape)
+                    spector += check_spatial2spectr(l_kadr[row_ind:row_ind + 512, col_ind:col_ind + 512]) / 6
+
+            stop_kadr1.append(
+                compare_qr(spector, io.imread(r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm.png"),
+                           shift_qr), )
+
             if cnt % 200 == 199:
                 img = Image.fromarray(spector.astype('uint8'))
                 img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
                 print(ampl, cnt, stop_kadr1)
+            # stop_kadr1.append(ser6)
 
         cnt += 1
 
@@ -409,17 +420,17 @@ if __name__ == '__main__':
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
-    bitr = 20
-    shift = 50
+    bitr = 10
+    shift = 0
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_in_shift_%d_wm_65.png" % shift
+    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_wm_65.png"
 
     img_wm = io.imread(PATH_IMG)
 
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
-    for ampl in [2]:
+    for ampl in [4,5]:
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -431,11 +442,11 @@ if __name__ == '__main__':
 
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
         generate_video(bitr, output_folder)
-        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift)
+        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, 0)
 
         # print("Variance", var_list)
         with open(
-                r'D:/pythonProject/Phase_WM_Clear\data/var_list_no_smooth_on_%d_center_' % shift + str(
+                r'D:/pythonProject/Phase_WM_Clear\data/var_list_no_smooth_union_on_%d_center_' % shift + str(
                     ampl) + '_bitr' + str(
                     bitr) + '.txt',
                 'w') as file:
@@ -443,7 +454,7 @@ if __name__ == '__main__':
                 file.write(str(var) + "\n")
 
         with open(
-                r'D:/pythonProject/Phase_WM_Clear\data/acc_list_no_smooth_on_%d_center_' % shift + str(
+                r'D:/pythonProject/Phase_WM_Clear\data/acc_list_no_smooth_union_on_%d_center_' % shift + str(
                     ampl) + '_bitr' + str(
                     bitr) + '.txt',
                 'w') as file:
