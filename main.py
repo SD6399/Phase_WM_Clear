@@ -430,7 +430,7 @@ if __name__ == '__main__':
 
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
-    for ampl in [4,5]:
+    for ampl in [10]:
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
