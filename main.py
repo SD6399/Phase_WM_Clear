@@ -110,33 +110,33 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
-    #count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
 
-    # while cnt < total_count:
-    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
-    #
-    #     d1 = f1
-    #     if cnt == rand_fr:
-    #         f1 = arr.astype('float32')
-    #         d1 = np.zeros((1080, 1920))
-    #     # elif cnt == change_sc[scene-1] + 1:
-    #     else:
-    #         f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-    #     # else:
-    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-    #
-    #     np.clip(f1, 0, 255, out=f1)
-    #     img = Image.fromarray(f1.astype('uint8'))
-    #     if cnt % 300 == 0:
-    #         print("first smooth", cnt)
-    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-    #
-    #     cnt += 1
+    while cnt < total_count:
+        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+
+        d1 = f1
+        if cnt == rand_fr:
+            f1 = arr.astype('float32')
+            d1 = np.zeros((1080, 1920))
+        # elif cnt == change_sc[scene-1] + 1:
+        else:
+            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+        # else:
+        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+
+        np.clip(f1, 0, 255, out=f1)
+        img = Image.fromarray(f1.astype('uint8'))
+        if cnt % 300 == 0:
+            print("first smooth", cnt)
+        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+
+        cnt += 1
 
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -414,7 +414,7 @@ def vot_by_variance(path_imgs, start, end, treshold):
 if __name__ == '__main__':
 
     l_fr = []
-    ampl = 1
+    ampl = 10
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
@@ -436,8 +436,8 @@ if __name__ == '__main__':
 
         total_count = 2997
 
-        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        #generate_video(bitr, output_folder)
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        generate_video(bitr, output_folder)
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
 
     print("Acc-cy of last frame", l_fr)
