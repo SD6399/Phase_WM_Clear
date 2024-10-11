@@ -473,7 +473,7 @@ plt.show()
 # video.release()
 
 
-list_v = [2,3,4,5]
+list_v = [10]
 for i in list_v:
     my_file1_acc = open("data/acc_list_no_smooth_union_on_%d_center_" % 0 + str(i) + '_bitr' + str(10) + '.txt', "r")
     my_file1_var = open("data/var_list_no_smooth_union_on_%d_center_" % 0 + str(2) + '_bitr' + str(10) + '.txt', "r")
@@ -509,7 +509,8 @@ for i in list_v:
     # list_split2_acc = np.array([float(words) for segments in data_into_list2_acc for words in segments.split()])
     # list_split2_acc[list_split2_acc > 1000] = 1000
     # print(len(list_split2_acc), len(list_split1_acc), len(range(19, 2980, 20)))
-    plt.plot(range(19, 3000, 20), list_split1_acc, label="Accuracy. Embedding in All Picture. Bitrate = 10.A =%d" %i)
+    plt.plot(range(19, 3000, 20), list_split1_acc, label="Spectral Method. Embedding in All Picture. Bitrate = 10.A =%d" %i)
+    plt.plot(range(19,3000,20),[1]*150,label = "Classical Method.A=10")
     # plt.plot(range(19, 2980, 20), list_split2_acc[:-1], label="Accuracy. Embedding in All Picture. Bitrate = 10")
     # plt.title("Битрейт = 20. Встраивание в  спектральной области в угол")
 plt.legend()
