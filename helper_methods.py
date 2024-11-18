@@ -288,22 +288,50 @@ def compare_qr(myqr, orig_qr, shift):
     """
 
     # orig_qr = io.imread(r"data/RS_cod89x89.png")
-    orig_cut = np.zeros((65, 65))
+    orig_cut = np.zeros((49, 49))
     orig_qr = np.where(orig_qr > 127, 255, 0)
-    orig_cut[:, :32] = orig_qr[1 + shift:66 + shift, 1 + shift:33 + shift]
-    orig_cut[:, 32:] = orig_qr[1 + shift:66 + shift, -33 - shift:]
+    orig_cut[:, :24] = orig_qr[1 + shift:50 + shift, 1 + shift:25 + shift]
+    if shift != 0:
+        orig_cut[:, 24:] = orig_qr[1 + shift:50 + shift, -25 - shift:-shift]
+    else:
+        orig_cut[:, 24:] = orig_qr[1 + shift:50 + shift, -25 - shift:]
     # small_qr = big2small(orig_qr)
     # sr_matr = np.zeros((1424, 1424, 3))
     # myqr = io.imread(path)
-    myqr_cut = np.zeros((65, 65))
 
-    myqr_cut[:, :32] = myqr[1 + shift:66 + shift, 1 + shift:33 + shift]
-    myqr_cut[:, 32:] = myqr[1 + shift:66 + shift, -33 - shift:]
+    # myqr_cut = myqr
+    myqr_cut = np.zeros((49, 49))
+
+    myqr_cut[:, :24] = myqr[1 + shift:50 + shift, 1 + shift:25 + shift]
+    myqr_cut[:, 24:] = myqr[1 + shift:50 + shift, -25 - shift:]
     myqr_cut = np.where(myqr_cut > np.mean(myqr_cut), 255, 0)
 
     sr_matr = orig_cut == myqr_cut
     k = np.count_nonzero(sr_matr)
     return k / sr_matr.size
+
+
+def binarize_qr(myqr, shift):
+    """
+     Comparing the extracted QR with the original one
+    :param path: path to code for comparison
+    :return: percentage of similarity
+    """
+
+    myqr_cut = np.zeros((49, 49))
+    # for i in range(0, 230, 4):
+    #     for j in range(0, 230, 4):
+    #         myqr_cut[int(i / 4), int(j / 4)] = np.mean(myqr[1 + i + shift: i + shift + 4 +1, -33 + j - shift:-33+j - shift+4])
+
+    myqr_cut[:, :24] = myqr[1 + shift:50 + shift, 1 + shift:25 + shift]
+    if shift != 0:
+        myqr_cut[:, 24:] = myqr[1 + shift:50 + shift, -25 - shift:-shift]
+    else:
+        myqr_cut[:, 24:] = myqr[1 + shift:50 + shift, -25 - shift:]
+    myqr_cut = np.where(myqr_cut > np.mean(myqr_cut), 255, 0)
+    myqr_cut[myqr_cut == 255] = 1
+
+    return myqr_cut
 
 
 # create_gray_bg()
@@ -473,21 +501,25 @@ plt.show()
 # video.release()
 
 
-list_v = [10]
+list_v = [3]
 for i in list_v:
-    my_file1_acc = open("data/acc_list_no_smooth_union_on_%d_center_" % 0 + str(i) + '_bitr' + str(10) + '.txt', "r")
-    my_file1_var = open("data/var_list_no_smooth_union_on_%d_center_" % 0 + str(2) + '_bitr' + str(10) + '.txt', "r")
-    # my_file2_acc = open("data/acc_list_no_smooth_union_on_%d_center_" % 0 + str(2) + '_bitr' + str(10) + '.txt', "r")
+    my_file1_acc = open(r'D:/pythonProject/Phase_WM_Clear\data/acc_list_49_1024_no_smooth_union_on_%d_center_' % 10 + str(
+            3) + '_bitr' + str(
+            5) + "_shift" + str(10) + '.txt', "r")
+    # my_file1_var = open("data/var_list_no_smooth_union_on_%d_center_" % 0 + str(2) + '_bitr' + str(10) + '.txt', "r")
+    my_file2_acc = open(r'D:/pythonProject/Phase_WM_Clear\data/acc_list_49_1024_no_smooth_union_on_%d_center_' % 0 + str(
+        3) + '_bitr' + str(
+        5) + "_shift" + str(0) + '.txt', "r")
     # my_file2_var = open("data/var_list_2_bitr20.txt", "r")
     # reading the file
-    data_var = my_file1_var.read()
+    # data_var = my_file1_var.read()
     #
     # # replacing end of line('/n') with ' ' and
     # # splitting the text it further when '.' is seen.
-    data_into_list_var = data_var.replace('\n', ' ').split(" ")
-    list_split_var = np.array([float(words) for segments in data_into_list_var for words in segments.split()])
-    list_split_var[list_split_var > 1000] = 1000
-    list_split_var /= 1000
+    # data_into_list_var = data_var.replace('\n', ' ').split(" ")
+    # list_split_var = np.array([float(words) for segments in data_into_list_var for words in segments.split()])
+    # list_split_var[list_split_var > 1000] = 1000
+    # list_split_var /= 1000
     # plt.plot(list_split_var, label="Variance. Embedding in all picture")
 
     # data_var2 = my_file2_var.read()
@@ -504,15 +536,15 @@ for i in list_v:
     data_into_list1_acc = data1_acc.replace('\n', ' ').split(" ")
     list_split1_acc = np.array([float(words) for segments in data_into_list1_acc for words in segments.split()])
     #
-    # data2_acc = my_file2_acc.read()
-    # data_into_list2_acc = data2_acc.replace('\n', ' ').split(" ")
-    # list_split2_acc = np.array([float(words) for segments in data_into_list2_acc for words in segments.split()])
+    data2_acc = my_file2_acc.read()
+    data_into_list2_acc = data2_acc.replace('\n', ' ').split(" ")
+    list_split2_acc = np.array([float(words) for segments in data_into_list2_acc for words in segments.split()])
     # list_split2_acc[list_split2_acc > 1000] = 1000
     # print(len(list_split2_acc), len(list_split1_acc), len(range(19, 2980, 20)))
-    plt.plot(range(19, 3000, 20), list_split1_acc, label="Spectral Method. Embedding in All Picture. Bitrate = 10.A =%d" %i)
-    plt.plot(range(19,3000,20),[1]*150,label = "Classical Method.A=10")
+    plt.plot(range(19, 2980, 20), list_split2_acc, label="Size of QR = 49x49")
+    plt.plot(range(19, 2980, 20), list_split1_acc, label="Size of QR = 65x65")
     # plt.plot(range(19, 2980, 20), list_split2_acc[:-1], label="Accuracy. Embedding in All Picture. Bitrate = 10")
-    # plt.title("Битрейт = 20. Встраивание в  спектральной области в угол")
+    plt.title("Spectral Method. Embedding in All Picture. Bitrate = 5.A =%d" % i)
 plt.legend()
 plt.grid(True)
 plt.show()
