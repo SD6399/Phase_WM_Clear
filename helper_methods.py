@@ -21,8 +21,11 @@ def read_video(path, path_to_save):
         success, image = vidcap.read()
 
         if success:
-            cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
-
+            gray_frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            # gray_frame = image
+            # cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
+            img = Image.fromarray(gray_frame.astype('uint8'))
+            img.save(path_to_save + "frame" + str(count_frame) + ".png")
         if count_frame % 500 == 499:
             print("записан кадр", count_frame, )
 
@@ -500,6 +503,7 @@ plt.show()
 # cv2.destroyAllWindows()
 # video.release()
 
+"""
 
 list_v = [3]
 for i in list_v:
@@ -548,7 +552,7 @@ for i in list_v:
 plt.legend()
 plt.grid(True)
 plt.show()
-
+"""
 from scpetrcal_halftone import energy_spector
 
 
