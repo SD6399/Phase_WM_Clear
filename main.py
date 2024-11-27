@@ -102,7 +102,7 @@ def read2list(file):
     return lines
 
 
-def extract(alf, beta, tt, size_wm, rand_fr):
+def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
     """
     Procedure embedding
     :param alf: primary smoothing parameter
@@ -112,7 +112,6 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     :param rand_fr: the frame from which the extraction begins
     :return: the path to the final image
     """
-    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
     count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
@@ -336,9 +335,10 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     return stop_kadr1[-1]
 
 
-def generate_video(bitr, image_folder):
+def generate_video(bitr, image_folder) -> str:
     """
     Sequence of frames transform to compress video
+    :param image_folder: Folder which save all pictures after embedding
     :param bitr: bitrate of output video
     """
 
@@ -367,6 +367,9 @@ def generate_video(bitr, image_folder):
     if bitr != "orig":
         os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
                   f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+        return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
+    else:
+        return "D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4"
 
 
 def compare(path, orig_qr):
@@ -418,9 +421,10 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
+    mat_exp = 90
     var_disp = 1800
     ro = 0.9944
-    need_params2 = (0.5, 0.1, 0.32)
+    params_ACF = (0.5, 0.1, 0.32)
     l_fr = []
     ampl = 1
     alfa = 0.0005
@@ -431,13 +435,17 @@ if __name__ == '__main__':
     # input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     input_folder = r"D:/pythonProject/phase_wm/synthesis_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
-    # PATH_IMG = r"D:/local_foldr/phase_wm_in_video/data/RS_cod89x89.png"
+    # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
+    PATH_IMG = r"D:/local_foldr/phase_wm_in_video/data/RS_cod89x89.png"
     img_wm = io.imread(PATH_IMG)
+
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
     total_count = 300
-    for mat_exp in range(50, 111, 20):
+    for hc_const in np.arange(4000, 12001, 2000):
+        # params_ACF_lst = list(params_ACF)
+        # params_ACF_lst[2] = beta_acf
+        # params_ACF = tuple(params_ACF_lst)
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -446,9 +454,9 @@ if __name__ == '__main__':
         stop_kadr2_bin = []
 
         # if mat_exp != 50:
-        create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, need_params2, total_count)
+        create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, params_ACF, total_count,hc_const)
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video(bitr, output_folder)
-        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
-
+        vid_path = generate_video(bitr, output_folder)
+        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
+        print("beta coef", hc_const)
     print("Acc-cy of last frame", l_fr)

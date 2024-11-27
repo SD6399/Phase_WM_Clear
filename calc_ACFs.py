@@ -154,7 +154,6 @@ def plot_ACF(img):
     # print(img.shape, len(pair_lst), mean_by_mean)
 
     ifft_matr = ACF_by_periodogram2(img[:, :])
-    print("ACF of image", ifft_matr[10:])
 
     check_row = (ifft_matr[0, :])
     check_row -= mean_by_mean ** 2
@@ -281,7 +280,7 @@ def calc_sensor_noise(img121, img122):
 
 
 if __name__ == '__main__':
-
+    """
     np.random.seed(42)
     # rand_list = np.random.choice(1080, 350, replace=False)
     np.random.seed(43)
@@ -321,13 +320,15 @@ if __name__ == '__main__':
     plt.xticks(np.arange(0, 51 + 1, 5))
     plt.show()
     # graph_video_model = plot_ACF_video(r"D:/pythonProject/phase_wm/Road.mp4", my_square, 2048)
+    """
     # plt.plot(graph_video_model[:200], label="Synthesis video ACF")
     # plt.show()
 
+    """
     d = [0, 121, 196, 404, 414, 772, 1418, 2363]
     full_ACF = np.zeros((len(d), 1920))
     for cnt in range(len(d)):
-        image_orig = io.imread("D:/pythonProject/phase_wm/LG/frame" + str(d[cnt]) + ".png")[:, :, 0]
+        image_orig = io.imread("D:/pythonProject/phase_wm/RB/frame" + str(d[cnt]) + ".png")[:, :, 0]
         # image_orig = io.imread("D:/pythonProject/phase_wm/mosaics/mosaic" + str(cnt) + ".png")
         full_ACF[cnt, :] = plot_ACF(image_orig)
 
@@ -344,8 +345,10 @@ if __name__ == '__main__':
     for ind in range(100):
         relation_list_ACF.append(avg_ACF[ind + 1] / avg_ACF[ind])
 
-    print("cCor coef", np.mean(relation_list_ACF[30:100]))
+    print("cCor coef", np.mean(relation_list_ACF[0:20]))
 
+    print("Cor coef texture", np.mean(relation_list_ACF[50:100]))
+    print("relation lsit", relation_list_ACF)
     plt.plot(relation_list_ACF, )
     plt.plot([np.mean(relation_list_ACF[30:100])] * 100)
     plt.yticks(np.arange(0.96, 1.000001, 0.005))
@@ -355,3 +358,5 @@ if __name__ == '__main__':
     plt.legend()
     plt.grid(True)
     plt.show()
+    
+    """
