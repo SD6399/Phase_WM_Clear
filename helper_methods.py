@@ -588,3 +588,5 @@ def check_energ_spector():
     plt.plot(dif_val)
     plt.plot(qr_acc)
     plt.show()
+
+

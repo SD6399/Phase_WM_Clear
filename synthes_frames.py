@@ -23,7 +23,6 @@ count_jump = math.ceil(500 / 25)
 
 
 # rand_jump = np.random.choice(range(500), count_jump, replace=False)
-
 # rand_jump.sort()
 
 

@@ -452,7 +452,6 @@ if __name__ == '__main__':
         stop_kadr2 = []
         stop_kadr1_bin = []
         stop_kadr2_bin = []
-
         # if mat_exp != 50:
         create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, params_ACF, total_count,hc_const)
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
