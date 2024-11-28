@@ -421,7 +421,15 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
+    total_count = 300
     mat_exp = 90
+    noise_text = 49
+    np.random.seed(24)
+    rand_jump = np.random.randint(total_count, size=6)
+    rand_jump = np.insert(rand_jump,0, 0)
+
+    print(rand_jump)
+    hc_const = 9101
     var_disp = 1800
     ro = 0.9944
     params_ACF = (0.5, 0.1, 0.32)
@@ -431,7 +439,7 @@ if __name__ == '__main__':
     betta = 0.999
     # teta = 2.6
     bitr = "orig"
-    teta = 2.9
+    # teta = 2.9
     # input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     input_folder = r"D:/pythonProject/phase_wm/synthesis_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
@@ -441,8 +449,10 @@ if __name__ == '__main__':
 
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
     #                   input_folder)
-    total_count = 300
-    for hc_const in np.arange(4000, 12001, 2000):
+
+    create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, params_ACF, total_count, hc_const, noise_text,
+                           rand_jump)
+    for teta in np.arange(0.1, 3.11, 0.5):
         # params_ACF_lst = list(params_ACF)
         # params_ACF_lst[2] = beta_acf
         # params_ACF = tuple(params_ACF_lst)
@@ -453,9 +463,9 @@ if __name__ == '__main__':
         stop_kadr1_bin = []
         stop_kadr2_bin = []
         # if mat_exp != 50:
-        create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, params_ACF, total_count,hc_const)
+
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
         vid_path = generate_video(bitr, output_folder)
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
-        print("beta coef", hc_const)
+        print("Current teta", teta)
     print("Acc-cy of last frame", l_fr)

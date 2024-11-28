@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 from helper_methods import disp
 
 hc_const = 9100
-alf = 0.99
+
 ro = 0.9944
 var_disp = 1800
 
-per_of_jumps = int(1 / (1 - alf))
+
 
 count_jump = math.ceil(500 / 25)
 
@@ -83,6 +83,7 @@ def add_noise(img, mean, var, seed):
 
 
 def process_range(first_proc, finish_proc, queue_of_proc, ACF_quadr):
+
     results = []
     for i in range(first_proc, finish_proc):
         sq = gener_field(ACF_quadr, rand_jump[i])
@@ -279,14 +280,15 @@ def plot_ACF_synthesis_ACF(params_ACF):
         return final_frame
 
 
-def create_synthesis_video(mo, ro, width, height, variance, param_ACF, numb_frames, hc):
-    rand_jump = np.random.randint(numb_frames, size=int(numb_frames / per_of_jumps))
-    rand_jump = np.append(rand_jump, 0)
-    rand_jump = np.sort(rand_jump)
+def create_synthesis_video(mo, ro, width, height, variance, param_ACF, numb_frames, hc, noise_text, rand_jump):
+    # per_of_jumps = int(1 / (1 - alf))
+    # rand_jump = np.random.randint(numb_frames, size=int(numb_frames / per_of_jumps))
+    # rand_jump = np.append(rand_jump, 0)
+    # rand_jump = np.sort(rand_jump)
 
     print(rand_jump)
 
-    list_ACF_attempt_2 = synt_tex(param_ACF,hc)
+    list_ACF_attempt_2 = synt_tex(param_ACF, hc)
     for numb in range(numb_frames):
         if numb in rand_jump:
             print(np.where(rand_jump == numb)[0][0])
@@ -296,7 +298,7 @@ def create_synthesis_video(mo, ro, width, height, variance, param_ACF, numb_fram
                 print("Real Variance of Texture", txt_acf[0])
             synth_mosaic = FieldGenerator.draw_mosaic_field(20, ro, width, height, 0, variance, numb)
             synth_mosaic += mo
-            synth_mosaic_aft_noise = add_noise(synth_mosaic, 0, 49, 42 * numb)
+            synth_mosaic_aft_noise = add_noise(synth_mosaic, 0, noise_text, 42 * numb)
             synth_texture_aft_noise = add_noise(sq, 0, 100, np.where(rand_jump == numb)[0][0])
             synth_final_frame = np.where(
                 synth_texture_aft_noise[:1080, :1920] + synth_mosaic_aft_noise[:1080, :1920] > 255,
