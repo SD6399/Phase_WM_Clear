@@ -279,7 +279,7 @@ def calc_sensor_noise(img121, img122):
 
 
 if __name__ == '__main__':
-    """
+
     np.random.seed(42)
     # rand_list = np.random.choice(1080, 350, replace=False)
     np.random.seed(43)
@@ -317,13 +317,16 @@ if __name__ == '__main__':
     plt.title("LutGaya", fontsize=20)
     plt.grid(True)
     plt.xticks(np.arange(0, 51 + 1, 5))
+    plt.legend()
+    plt.savefig('D:/articles/synthezis/LG_2.eps', format='eps', dpi=300)
     plt.show()
+
     # graph_video_model = plot_ACF_video(r"D:/pythonProject/phase_wm/Road.mp4", my_square, 2048)
     """
     # plt.plot(graph_video_model[:200], label="Synthesis video ACF")
     # plt.show()
 
-    """
+    
     d = [0, 121, 196, 404, 414, 772, 1418, 2363]
     full_ACF = np.zeros((len(d), 1920))
     for cnt in range(len(d)):
