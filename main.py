@@ -12,7 +12,7 @@ from helper_methods import csv2list, bit_voting
 from reedsolomon import extract_RS, Nbit
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
+import matplotlib.pyplot as plt
 
 def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
     """
@@ -108,15 +108,15 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     :param rand_fr: the frame from which the extraction begins
     :return: the path to the final image
     """
-    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
+    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\need_video.mp4'
 
-    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
-
+    pix100_smooth = []
     while cnt < total_count:
         arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
 
@@ -132,11 +132,17 @@ def extract(alf, beta, tt, size_wm, rand_fr):
 
         np.clip(f1, 0, 255, out=f1)
         img = Image.fromarray(f1.astype('uint8'))
+        pix100_smooth.append(f1[100, 100])
         if cnt % 300 == 0:
             print("first smooth", cnt)
         img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
 
         cnt += 1
+
+    plt.show(pix100_orig, label = "Orig pixel value")
+    plt.show(pix100_smooth, label="Smooth pixel value")
+    plt.legend()
+    plt.show()
 
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -144,9 +150,9 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     d = g.copy()
     count = total_count
 
-    g2 = np.zeros((1424,1424), dtype=np.complex_)
-    f2 = np.zeros((1424,1424), dtype=np.complex_)
-    d2 = np.zeros((1424,1424), dtype=np.complex_)
+    g2 = np.zeros((1424, 1424), dtype=np.complex_)
+    f2 = np.zeros((1424, 1424), dtype=np.complex_)
+    d2 = np.zeros((1424, 1424), dtype=np.complex_)
 
     # reading a shuffled object
     shuf_order = read2list(r'D:/pythonProject/phase_wm\shuf.txt')
@@ -237,7 +243,6 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         wm[wm < 0] = 0
 
         a1 = wm
-
 
         # # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
         # img = Image.fromarray(big2small(a1).astype('uint8'))
@@ -333,6 +338,7 @@ def extract(alf, beta, tt, size_wm, rand_fr):
 def generate_video(bitr, image_folder):
     """
     Sequence of frames transform to compress video
+    :param image_folder: Folder which save all pictures after embedding
     :param bitr: bitrate of output video
     """
 
@@ -359,8 +365,12 @@ def generate_video(bitr, image_folder):
     cv2.destroyAllWindows()
     video.release()
 
-    os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
-              f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+    if bitr != "orig":
+        os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
+                  f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+        return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
+    else:
+        return "D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4"
 
 
 def compare(path, orig_qr):
@@ -414,7 +424,7 @@ def vot_by_variance(path_imgs, start, end, treshold):
 if __name__ == '__main__':
 
     l_fr = []
-    ampl = 10
+    ampl = 1
     alfa = 0.0005
     betta = 0.999
     # teta = 2.6
@@ -434,10 +444,11 @@ if __name__ == '__main__':
         stop_kadr1_bin = []
         stop_kadr2_bin = []
 
-        total_count = 2997
+        # total_count = 2997
+        total_count = 997
 
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video(bitr, output_folder)
+        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        # generate_video("orig", output_folder)
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
 
     print("Acc-cy of last frame", l_fr)
