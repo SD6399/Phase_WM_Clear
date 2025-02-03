@@ -16,19 +16,20 @@ def read_video(path, path_to_save):
     vidcap = cv2.VideoCapture(path)
     count_frame = 0
     success = True
-    while success:
+    pix100 = []
+    while success and count_frame < 998:
         success, image = vidcap.read()
 
         if success:
             cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
-
+            pix100.append(image[100, 100, 0])
         if count_frame % 25 == 24:
-            print("записан кадр", count_frame,)
+            print("записан кадр", count_frame, )
 
         if cv2.waitKey(10) == 27:
             break
         count_frame += 1
-    return count_frame
+    return count_frame, pix100
 
 
 def sort_spis(sp, keyword):
@@ -278,9 +279,25 @@ def decode_wm(wm, path_to_save):
 
     return decoding_qr
 
+
 # create_gray_bg()
 # compar_before_after_saving("C:/Users/user/PycharmProjects/phase_wm/frames_after_emb", "C:/Users/user/PycharmProjects/phase_wm/extract")
 
 # bit_voting(io.imread(r"D:\dk\university\nirs\extract/wm_after_2_smooth_bin/result" + str(456) + ".png"), 7112)
 # print(disp("C:/Users/user/PycharmProjects/phase_wm/frames_orig_video"))
 # csv2list('LG_disp.csv')
+img_orig = []
+img_smooth = []
+for i in range(997):
+    print(i)
+    img_orig.append(io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(i) + ".png")[100, 100, 0])
+    img_smooth.append(
+        io.imread(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(i) + '.png')[100, 100, 0])
+
+plt.plot(img_orig, label="Orig pixel value")
+plt.plot(img_smooth, label="Smooth pixel value")
+plt.legend()
+plt.show()
+
+plt.plot([img_orig[i] - img_smooth[i] for i in range(len(img_orig))])
+plt.show()
