@@ -1,18 +1,21 @@
 import math
 from skimage import io
+import psutil
 # from reedsolo import RSCodec
 from skimage.exposure import histogram
 import cv2
 import os
+import gc
 import numpy as np
 from PIL import Image, ImageFile
 # from qrcode_1 import read_qr, correct_qr
 from helper_methods import small2big, big2small, sort_spis, read_video
-from helper_methods import csv2list, bit_voting
+from helper_methods import csv2list, bit_voting, read2list
 from reedsolomon import extract_RS, Nbit
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import matplotlib.pyplot as plt
+
 
 def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
     """
@@ -27,6 +30,8 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
     fi = math.pi / 2 / 255
     st_qr = cv2.imread(binary_image)
     st_qr = cv2.cvtColor(st_qr, cv2.COLOR_RGB2YCrCb)
+
+    lst_100 = []
 
     data_length = st_qr[:, :, 0].size
     shuf_order = np.arange(data_length)
@@ -50,6 +55,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
     sort_name_img = sort_spis(images, "frame")[:total_count]
     cnt = 0
 
+    # while cnt < total_count:
     while cnt < len(sort_name_img):
         # Reads in BGR format
         imgg = cv2.imread(folder_orig_image + sort_name_img[cnt])
@@ -61,12 +67,15 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         # A*sin(m * teta + fi)
         wm = np.array((amplitude * np.sin(cnt * tt + temp)))
 
-        # if my_i == 1:
-        #     wm = np.where(wm>0,1,-1)
+        copy_a = np.copy(a)
+        if amplitude == 1:
+            wm = np.where(wm > 0, 1, -1)
         # Embedding in the Y-channel
         a[0:1057, :, 0] = np.where(np.float32(a[0:1057, :, 0] + wm) > 255, 255,
                                    np.where(a[0:1057, :, 0] + wm < 0, 0, np.float32(a[0:1057, :, 0] + wm)))
 
+        lst_100.append(a[100, 100, 0] - copy_a[100, 100, 0])
+        # print(lst_100)
         # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
         #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
         #                                             np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0])))
@@ -81,21 +90,9 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
 
         cnt += 1
 
-
-def read2list(file):
-    """
-
-    :param file: file which transform to list
-    :return: list of values
-    """
-    # opening the file in utf-8 reading mode
-    file = open(file, 'r', encoding='utf-8')
-    # we read all the lines and delete the newline characters
-    lines = file.readlines()
-    lines = [line.rstrip('\n') for line in lines]
-    file.close()
-
-    return lines
+        with open('diff_wm.txt', 'w') as f:
+            for line in lst_100:
+                f.write(f"{line}\n")
 
 
 def extract(alf, beta, tt, size_wm, rand_fr):
@@ -110,14 +107,18 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\need_video.mp4'
 
-    count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    # count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
     pix100_smooth = []
+    gc.collect()
+
     while cnt < total_count:
+        print('After create dataset The CPU usage is: ', psutil.virtual_memory().percent)
+
         arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
 
         d1 = f1
@@ -132,14 +133,17 @@ def extract(alf, beta, tt, size_wm, rand_fr):
 
         np.clip(f1, 0, 255, out=f1)
         img = Image.fromarray(f1.astype('uint8'))
-        pix100_smooth.append(f1[100, 100])
+        pix100_smooth.append(f1[100, 100, 0])
         if cnt % 300 == 0:
             print("first smooth", cnt)
         img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
 
+        del arr
+        gc.collect()
+
         cnt += 1
 
-    plt.show(pix100_orig, label = "Orig pixel value")
+    plt.show(pix100_orig, label="Orig pixel value")
     plt.show(pix100_smooth, label="Smooth pixel value")
     plt.legend()
     plt.show()
@@ -447,8 +451,8 @@ if __name__ == '__main__':
         # total_count = 2997
         total_count = 997
 
-        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        # generate_video("orig", output_folder)
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        generate_video("orig", output_folder)
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
 
     print("Acc-cy of last frame", l_fr)

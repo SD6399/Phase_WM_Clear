@@ -12,6 +12,22 @@ from PIL import Image
 size_quadr = 16
 
 
+def read2list(file):
+    """
+
+    :param file: file which transform to list
+    :return: list of values
+    """
+    # opening the file in utf-8 reading mode
+    file = open(file, 'r', encoding='utf-8')
+    # we read all the lines and delete the newline characters
+    lines = file.readlines()
+    lines = [line.rstrip('\n') for line in lines]
+    file.close()
+
+    return lines
+
+
 def read_video(path, path_to_save):
     vidcap = cv2.VideoCapture(path)
     count_frame = 0
@@ -286,18 +302,37 @@ def decode_wm(wm, path_to_save):
 # bit_voting(io.imread(r"D:\dk\university\nirs\extract/wm_after_2_smooth_bin/result" + str(456) + ".png"), 7112)
 # print(disp("C:/Users/user/PycharmProjects/phase_wm/frames_orig_video"))
 # csv2list('LG_disp.csv')
-img_orig = []
-img_smooth = []
-for i in range(997):
-    print(i)
-    img_orig.append(io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(i) + ".png")[100, 100, 0])
-    img_smooth.append(
-        io.imread(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(i) + '.png')[100, 100, 0])
+# img_orig = []
+# img_smooth = []
+# for i in range(997):
+#     print(i)
+#     img_orig.append(io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(i) + ".png")[100, 100, 0])
+#     img_smooth.append(
+#         io.imread(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(i) + '.png')[100, 100, 0])
+#
+# plt.plot(img_orig, label="Orig pixel value")
+# plt.plot(img_smooth, label="Smooth pixel value")
+# plt.legend()
+# plt.show()
+#
+# plt.plot([img_orig[i] - img_smooth[i] for i in range(len(img_orig))])
+# plt.show()
 
-plt.plot(img_orig, label="Orig pixel value")
-plt.plot(img_smooth, label="Smooth pixel value")
-plt.legend()
-plt.show()
-
-plt.plot([img_orig[i] - img_smooth[i] for i in range(len(img_orig))])
-plt.show()
+# wm = []
+# amplitude = 1
+# tt = 0.3
+# fi = np.pi / 2 / 255
+# temp = fi*1
+#
+# diff = read2list(r"D:\pythonProject\Phase_WM_Clear/diff_wm.txt")
+# diff = np.array([eval(i) for i in diff])
+# diff[diff == 255] = -1
+# print(diff)
+#
+# for cnt in range(len(diff)):
+#     wm.append((amplitude * np.sin(cnt * tt + temp)))
+#
+#
+# plt.step([i for i in range(len(diff))], diff)
+# plt.plot(wm)
+# plt.show()
