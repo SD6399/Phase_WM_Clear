@@ -62,8 +62,8 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         # A*sin(m * teta + fi)
         wm = np.array((amplitude * np.sin(cnt * tt + temp)))
 
-        # if my_i == 1:
-        #     wm = np.where(wm>0,1,-1)
+        if amplitude == 1:
+            wm = np.where(wm > 0, 1, -1)
         # Embedding in the Y-channel
         a[0:1057, :] = np.where(np.float32(a[0:1057, :] + wm) > 255, 255,
                                 np.where(a[0:1057, :] + wm < 0, 0, np.float32(a[0:1057, :] + wm)))
@@ -439,6 +439,7 @@ if __name__ == '__main__':
     # alfa = 0.9995
     # alfa_exper = 0.99
     betta = 0.959
+    alfa = 0.999
 
     bitr = "orig"
     teta = 3
@@ -457,7 +458,7 @@ if __name__ == '__main__':
     #                        rand_jump)
     embed(input_folder, output_folder, PATH_IMG, ampl, teta)
     vid_path = generate_video(bitr, output_folder)
-    for alfa in np.arange(0.919, 0.9991, 0.02):
+    for betta in np.arange(0.899, 0.9991, 0.02):
         # params_ACF_lst = list(params_ACF)
         # params_ACF_lst[2] = beta_acf
         # params_ACF = tuple(params_ACF_lst)
@@ -470,5 +471,5 @@ if __name__ == '__main__':
         # if mat_exp != 50:
 
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
-        print("Smoothing", alfa)
+        print("Zatukhanie", betta)
     print("Acc-cy of last frame", l_fr)
