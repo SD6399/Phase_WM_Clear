@@ -318,21 +318,28 @@ def decode_wm(wm, path_to_save):
 # plt.plot([img_orig[i] - img_smooth[i] for i in range(len(img_orig))])
 # plt.show()
 
-# wm = []
-# amplitude = 1
-# tt = 0.3
-# fi = np.pi / 2 / 255
-# temp = fi*1
+wm = []
+amplitude = 1
+tt = 3
+fi = np.pi / 2 / 255
+temp = fi*1
+
+diff = read2list(r"D:\pythonProject\Phase_WM_Clear/diff_wm.txt")
+diff = np.array([eval(i) for i in diff])[:10]
+diff[diff == 255] = -1
+print(diff)
+
+diff_smooth = read2list(r"D:\pythonProject\Phase_WM_Clear/diff_smooth.txt")
+diff_smooth = np.array([eval(i) for i in diff_smooth])
+diff_smooth[diff_smooth == 255] = -1
+print(diff_smooth)
+
 #
-# diff = read2list(r"D:\pythonProject\Phase_WM_Clear/diff_wm.txt")
-# diff = np.array([eval(i) for i in diff])
-# diff[diff == 255] = -1
-# print(diff)
-#
-# for cnt in range(len(diff)):
-#     wm.append((amplitude * np.sin(cnt * tt + temp)))
-#
-#
+for cnt in range(10):
+    wm.append((amplitude * np.sin(cnt * tt + temp)))
+
+plt.plot(diff_smooth)
+
 # plt.step([i for i in range(len(diff))], diff)
 # plt.plot(wm)
-# plt.show()
+plt.show()

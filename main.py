@@ -107,8 +107,8 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\need_video.mp4'
 
-    # count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
-
+    count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    print("len of extracted", len(pix100_orig))
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -117,7 +117,8 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     gc.collect()
 
     while cnt < total_count:
-        print('After create dataset The CPU usage is: ', psutil.virtual_memory().percent)
+        if cnt % 25 == 24:
+            print('After create dataset The CPU usage is: ', psutil.virtual_memory().percent)
 
         arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
 
@@ -143,10 +144,12 @@ def extract(alf, beta, tt, size_wm, rand_fr):
 
         cnt += 1
 
-    plt.show(pix100_orig, label="Orig pixel value")
-    plt.show(pix100_smooth, label="Smooth pixel value")
-    plt.legend()
-    plt.show()
+    print("len of smooth", len(pix100_smooth))
+    with open('diff_smooth.txt', 'w') as f:
+        for i in range(997):
+            f.write(f"{pix100_orig[i] - pix100_smooth[i]}\n")
+
+    print("file writing end")
 
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -172,9 +175,9 @@ def extract(alf, beta, tt, size_wm, rand_fr):
             cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
         # # f1=np.float32(f1)
         f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
-        a1 = np.where(a < f1, f1 - a, a - f1)
+        # a1 = np.where(a < f1, f1 - a, a - f1)
         # a1 = np.where(a < f1, f1 - a, 0)
-        # a1 = a - f1
+        a1 = a - f1
         # a1 = a[:, :, 0]
         a1 = a1[:, :, 0]
         res_1d = np.ravel(a1)[:256 - 1920]
@@ -433,6 +436,7 @@ if __name__ == '__main__':
     betta = 0.999
     # teta = 2.6
     bitr = 10
+    total_count = 997
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
@@ -449,10 +453,9 @@ if __name__ == '__main__':
         stop_kadr2_bin = []
 
         # total_count = 2997
-        total_count = 997
 
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video("orig", output_folder)
+        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        # generate_video("orig", output_folder)
         l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
 
     print("Acc-cy of last frame", l_fr)
