@@ -52,25 +52,27 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
     sort_name_img = sort_spis(images, "frame")[:total_count]
     cnt = 0
 
+    diff_neighb = []
+
     while cnt < len(sort_name_img):
         # Reads in BGR format
-        imgg = cv2.imread(folder_orig_image + sort_name_img[cnt])
+        imgg = cv2.imread(folder_orig_image + sort_name_img[cnt]).astype('float32')
         # translation to the YCrCb space
         a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
+
+        def_img = np.copy(a)
         # a = a.astype(float)
 
         temp = fi * st_qr
         # A*sin(m * teta + fi)
         wm = np.array((amplitude * np.sin(cnt * tt + temp)))
 
-        # if my_i == 1:
-        #     wm = np.where(wm>0,1,-1)
         # Embedding in the Y-channel
         for row_ind in range(0, a.shape[0], st_qr.shape[0]):
             for col_ind in range(0, a.shape[1], st_qr.shape[0]):
                 if ((a.shape[0] - row_ind) >= st_qr.shape[0]) and (
                         (a.shape[1] - col_ind) >= st_qr.shape[0]):
-                    a[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0], 0] = np.where(
+                    def_img[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0], 0] = np.where(
                         np.float32(a[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0],
                                    0] + wm) > 255,
                         255,
@@ -81,7 +83,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
                                      0] + wm)))
                 elif ((a.shape[0] - row_ind) < st_qr.shape[0]) and (
                         (a.shape[1] - col_ind) >= st_qr.shape[0]):
-                    a[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] = np.where(
+                    def_img[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] = np.where(
                         np.float32(
                             a[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] + wm[
                                                                                          :a.shape[0] - row_ind,
@@ -97,7 +99,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
                 elif ((a.shape[0] - row_ind) >= st_qr.shape[0]) and (
                         (a.shape[1] - col_ind) < st_qr.shape[0]):
                     # print(wm[:, a.shape[1] - col_ind].shape)
-                    a[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] = np.where(
+                    def_img[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] = np.where(
                         np.float32(
                             a[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] + wm[:, :a.shape[
                                                                                                     1] - col_ind]) > 255,
@@ -109,7 +111,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
                                      a[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] + wm[:, :a.shape[
                                                                                                              1] - col_ind])))
                 else:
-                    a[row_ind:a.shape[0], col_ind:a.shape[1], 0] = np.where(
+                    def_img[row_ind:a.shape[0], col_ind:a.shape[1], 0] = np.where(
                         np.float32(a[row_ind:a.shape[0], col_ind:a.shape[1], 0] + wm[
                             a.shape[0] - row_ind, a.shape[1] - col_ind]) > 255,
                         255,
@@ -123,16 +125,18 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
         #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
         #                                             np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0])))
-        tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2BGR)
+        # diff_neighb.append((def_img - a)[100, 100, 0])
+        tmp = cv2.cvtColor(def_img, cv2.COLOR_YCrCb2BGR)
 
         # Converting the YCrCb matrix to BGR
         img_path = os.path.join(folder_to_save)
         cv2.imwrite(img_path + "frame" + str(cnt) + ".png", tmp)
 
-        if cnt % 700 == 0:
+        if cnt % 70 == 0:
             print("wm embed", cnt)
 
         cnt += 1
+    print(diff_neighb)
 
 
 def read2list(file):
@@ -164,34 +168,43 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
-    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
-    #
-    # while cnt < total_count:
-    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
-    #
-    #     d1 = f1
-    #     if cnt == rand_fr:
-    #         f1 = arr.astype('float32')
-    #         d1 = np.zeros((1080, 1920))
-    #     # elif cnt == change_sc[scene-1] + 1:
-    #     else:
-    #         f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-    #     # else:
-    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-    #
-    #     np.clip(f1, 0, 255, out=f1)
-    #     img = Image.fromarray(f1.astype('uint8'))
-    #     if cnt % 700 == 0:
-    #         print("first smooth", cnt)
-    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-    #
-    #     cnt += 1
+    orig100 = []
+    smooth100 = []
 
+    while cnt < total_count:
+        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png").astype('float32')
+        orig100.append(cv2.cvtColor(arr, cv2.COLOR_BGR2YCrCb)[100, 100, 0])
+        d1 = f1
+        if cnt == rand_fr:
+            f1 = arr.astype('float32')
+            d1 = np.zeros((1080, 1920))
+        # elif cnt == change_sc[scene-1] + 1:
+        else:
+            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+        # else:
+        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+
+        np.clip(f1, 0, 255, out=f1)
+        smooth100.append(cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)[100, 100, 0])
+        img = Image.fromarray(f1.astype('uint8'))
+        if cnt % 100 == 0:
+            print("first smooth", cnt)
+        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+
+        cnt += 1
+
+    print("orig", orig100)
+    print("smooth", smooth100)
+    # plt.plot(orig100,label = "orig")
+    # plt.plot(smooth100,label = "smooth")
+    # plt.legend()
+    plt.show()
     variance = []
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -201,10 +214,6 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     g2 = np.zeros((1024, 1920), dtype=np.complex_)
     f2 = np.zeros((1024, 1920), dtype=np.complex_)
     d2 = np.zeros((1024, 1920), dtype=np.complex_)
-
-    g3 = np.zeros((1024, 1920), dtype=np.complex_)
-    f3 = np.zeros((1024, 1920), dtype=np.complex_)
-    d3 = np.zeros((1024, 1920), dtype=np.complex_)
 
     count = total_count
 
@@ -365,23 +374,25 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     #     img = Image.fromarray(l_kadr.astype('uint8'))
     #     img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas/result" + str(cnt) + ".png")
     #
-    #     test_var = np.zeros((512, 512))
-    #     for row_ind in range(0, l_kadr.shape[0] - 512, 512):
-    #         for col_ind in range(0, l_kadr.shape[1] - 512, 512):
-    #             test_var += l_kadr[row_ind:row_ind + 512, col_ind:col_ind + 512] / 6
+    #     test_var = np.zeros((1024, 1024))
+    #     for row_ind in range(0, l_kadr.shape[0] - 1024, 1024):
+    #         for col_ind in range(0, l_kadr.shape[1] - 1024, 1024):
+    #             test_var += l_kadr[row_ind:row_ind + 1024, col_ind:col_ind + 512] / 6
     #
     #     variance.append(np.var(test_var - img_wm))
     #     if cnt % 20 == 19:
     #         # ser6 = []
-    #         spector = np.zeros((512, 512))
-    #         for row_ind in range(0, l_kadr.shape[0], 256):
-    #             for col_ind in range(0, l_kadr.shape[1], 256):
-    #                 # print(row_ind,col_ind,l_kadr.shape)
-    #                 spector += check_spatial2spectr(l_kadr[row_ind:row_ind + 512, col_ind:col_ind + 512]) / 28
+    #         spector = np.zeros((1024, 1024))
+    #         for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 256):
+    #             for col_ind in range(0, l_kadr.shape[1] - size_wm + 1, 256):
+    #                 # print(row_ind, col_ind, l_kadr.shape)
+    #                 spector += check_spatial2spectr(l_kadr[row_ind:row_ind + 1024, col_ind:col_ind + 1024]) / 4
     #
     #         stop_kadr1.append(
     #             compare_qr(spector, io.imread(r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm.png"),
     #                        shift_qr), )
+    #
+    #         print(ampl, cnt, stop_kadr1)
     #
     #         if cnt % 200 == 199:
     #             img = Image.fromarray(spector.astype('uint8'))
@@ -390,7 +401,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     #         # stop_kadr1.append(ser6)
     #
     #     cnt += 1
-
+    diff100 = []
     while cnt < count:
 
         arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
@@ -400,9 +411,12 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
         f1 = np.float32(
             cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
         f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
-        a1 = np.where(a < f1, f1 - a, a - f1)
+        # a1 = np.where(a < f1, f1 - a, a - f1)
+        a1 = a - f1
 
         a1 = a1[0:1024, 0:1920, 0]
+
+        diff100.append(a1[100, 100])
         # a1 = a[0:512, 0:512, 0]
 
         # res_1d = np.ravel(a1)[:256 - 1920]
@@ -574,7 +588,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
         variance.append(np.var(test_var - img_wm))
         bin_qr_spector = np.zeros((49, 49))
         count_quadr = 0
-        if cnt % 20 == 19:
+        if cnt % 10 == 9:
             # ser6 = []
             spector = np.zeros((size_wm, size_wm))
             for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 16):
@@ -597,16 +611,18 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
                 compare_qr(spector,
                            io.imread(r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm_1024_shift_0_49.png"),
                            shift_qr), )
+            print(ampl, alf, cnt, stop_kadr1)
 
             if cnt % 200 == 199:
                 # print(max(ser6), min(ser6), np.mean(ser6))
                 # print(ser6)
                 img = Image.fromarray(spector.astype('uint8'))
                 img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
-                print(ampl, cnt, stop_kadr1)
+                print(ampl, alf, cnt, stop_kadr1)
             # stop_kadr1.append(ser6)
 
         cnt += 1
+    print("Difference 100", diff100)
 
     return variance, stop_kadr1
 
@@ -627,7 +643,7 @@ def generate_video(bitr, image_folder):
 
     images = [img for img in os.listdir(image_folder)
               if img.endswith(".png")]
-    sort_name_img = sort_spis(images, "frame")
+    sort_name_img = sort_spis(images, "frame")[:total_count]
     frame = cv2.imread(os.path.join(image_folder, images[0]))
     height, width, layers = frame.shape
     # fourcc = cv2.VideoWriter_fourcc(*'H264')
@@ -646,6 +662,7 @@ def generate_video(bitr, image_folder):
     video.release()
 
     if bitr != "orig":
+        print("Codec worked")
         os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
                   f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
 
@@ -680,14 +697,14 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-
+    total_count = 107
     # l_fr = []
-    # ampl = 1
+    ampl = 2
     teta = 2.9
-    alfa = 0.0005
+    # alfa = 0.0005
     betta = 0.999
     # teta = 2.6
-    bitr = 5
+    bitr = "orig"
     shift = 0
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
@@ -695,9 +712,12 @@ if __name__ == '__main__':
 
     img_wm = io.imread(PATH_IMG)
 
-    # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
-    #                   input_folder)
-    for ampl in [3]:
+    # count = read_video(r'D:/pythonProject/phase_wm/Road.mp4',
+    #                    input_folder, total_count)
+    #
+    # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+    # generate_video(bitr, output_folder)
+    for alfa in [0.005, 0.05, 0.2, 0.4]:
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -705,13 +725,10 @@ if __name__ == '__main__':
         # stop_kadr1_bin = []
         # stop_kadr2_bin = []
 
-        total_count = 2997
+        # total_count = 2997
 
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video(bitr, output_folder)
         var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift)
 
-        print("Variance", var_list)
         with open(
                 r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
                     ampl) + '_bitr' + str(
