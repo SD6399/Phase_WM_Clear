@@ -28,12 +28,12 @@ def read2list(file):
     return lines
 
 
-def read_video(path, path_to_save):
+def read_video(path, path_to_save,final_frame):
     vidcap = cv2.VideoCapture(path)
     count_frame = 0
     success = True
     pix100 = []
-    while success and count_frame < 998:
+    while success and count_frame < final_frame:
         success, image = vidcap.read()
 
         if success:
