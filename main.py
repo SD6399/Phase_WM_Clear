@@ -107,8 +107,8 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\need_video.mp4'
 
-    count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
-    print("len of extracted", len(pix100_orig))
+    # count, pix100_orig = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
+    # print("len of extracted", len(pix100_orig))
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -116,40 +116,39 @@ def extract(alf, beta, tt, size_wm, rand_fr):
     pix100_smooth = []
     gc.collect()
 
-    while cnt < total_count:
-        if cnt % 25 == 24:
-            print('After create dataset The CPU usage is: ', psutil.virtual_memory().percent)
+    # while cnt < total_count:
+    #     if cnt % 25 == 24:
+    #         print('After create dataset The CPU usage is: ', psutil.virtual_memory().percent)
+    #
+    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+    #
+    #     d1 = f1
+    #     if cnt == rand_fr:
+    #         f1 = arr.astype('float32')
+    #         d1 = np.zeros((1080, 1920))
+    #     # elif cnt == change_sc[scene-1] + 1:
+    #     else:
+    #         f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+    #     # else:
+    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+    #
+    #     np.clip(f1, 0, 255, out=f1)
+    #     img = Image.fromarray(f1.astype('uint8'))
+    #     pix100_smooth.append(f1[100, 100, 0])
+    #     if cnt % 300 == 0:
+    #         print("first smooth", cnt)
+    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+    #
+    #     del arr
+    #     gc.collect()
+    #
+    #     cnt += 1
 
-        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+    # print("len of smooth", len(pix100_smooth))
+    # with open('diff_smooth.txt', 'w') as f:
+    #     for i in range(997):
+    #         f.write(f"{pix100_orig[i] - pix100_smooth[i]}\n")
 
-        d1 = f1
-        if cnt == rand_fr:
-            f1 = arr.astype('float32')
-            d1 = np.zeros((1080, 1920))
-        # elif cnt == change_sc[scene-1] + 1:
-        else:
-            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-        # else:
-        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-
-        np.clip(f1, 0, 255, out=f1)
-        img = Image.fromarray(f1.astype('uint8'))
-        pix100_smooth.append(f1[100, 100, 0])
-        if cnt % 300 == 0:
-            print("first smooth", cnt)
-        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-
-        del arr
-        gc.collect()
-
-        cnt += 1
-
-    print("len of smooth", len(pix100_smooth))
-    with open('diff_smooth.txt', 'w') as f:
-        for i in range(997):
-            f.write(f"{pix100_orig[i] - pix100_smooth[i]}\n")
-
-    print("file writing end")
 
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -249,6 +248,9 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         wm[wm > 255] = 255
         wm[wm < 0] = 0
 
+        img = Image.fromarray(wm.astype('uint8'))
+        img.save(r"D:/pythonProject/phase_wm\extract/before_normalize/result" + str(cnt) + ".png")
+
         a1 = wm
 
         # # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
@@ -261,6 +263,12 @@ def extract(alf, beta, tt, size_wm, rand_fr):
         # fi = np.copy(l_kadr)
         fi = (a1 * np.pi * 2) / 255
 
+        if cnt > 63:
+            # loc_hist = np.histogram(a1.flatten(), 255, (0, 255))
+            plt.hist(fi.flatten(), bins=255)
+            plt.xlabel("Значение полученной фазы", fontsize=20)
+            plt.ylabel("Количество пикселей", fontsize=20)
+            plt.show()
         coord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1), ((fi - np.pi) / np.pi * 2 - 1))
         coord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
                           np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
@@ -354,7 +362,7 @@ def generate_video(bitr, image_folder):
 
     images = [img for img in os.listdir(image_folder)
               if img.endswith(".png")]
-    sort_name_img = sort_spis(images, "frame")
+    sort_name_img = sort_spis(images, "frame")[:total_count]
     frame = cv2.imread(os.path.join(image_folder, images[0]))
     height, width, layers = frame.shape
     # fourcc = cv2.VideoWriter_fourcc(*'H264')
@@ -436,14 +444,14 @@ if __name__ == '__main__':
     betta = 0.999
     # teta = 2.6
     bitr = 10
-    total_count = 997
+    total_count = 297
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
-    PATH_IMG = r"D:/local_foldr/phase_wm_in_video/data/RS_cod89x89.png"
+    PATH_IMG = r"D:\pythonProject\Phase_WM_Clear\data/test_qr_89_89.png"
     img_wm = io.imread(PATH_IMG)
     # count = read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
-    #                   input_folder)
+    #                    input_folder, total_count)
     for teta in [2.9]:
         rand_k = 0
         vot_sp = []
