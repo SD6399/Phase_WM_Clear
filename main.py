@@ -1,4 +1,6 @@
 import math
+
+import matplotlib.pyplot as plt
 from skimage import io
 # from reedsolo import RSCodec
 from skimage.exposure import histogram
@@ -102,7 +104,7 @@ def read2list(file):
     return lines
 
 
-def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
+def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO="nan"):
     """
     Procedure embedding
     :param alf: primary smoothing parameter
@@ -113,35 +115,35 @@ def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
     :return: the path to the final image
     """
 
-    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/')
+    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
 
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
 
-    while cnt < total_count:
-        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
-        if cnt == 0:
-            print(arr.shape)
-
-        d1 = f1
-        if cnt == rand_fr:
-            f1 = arr.astype('float32')
-            d1 = np.zeros((1080, 1920))
-        # elif cnt == change_sc[scene-1] + 1:
-        else:
-            f1 = np.float32(d1) * (1 - alf) + np.float32(arr) * alf
-        # else:
-        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-
-        np.clip(f1, 0, 255, out=f1)
-        img = Image.fromarray(f1.astype('uint8'))
-        if cnt % 300 == 0:
-            print("first smooth", cnt)
-        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
-
-        cnt += 1
+    # while cnt < total_count:
+    #     arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+    #     if cnt == 0:
+    #         print(arr.shape)
+    #
+    #     d1 = f1
+    #     if cnt == rand_fr:
+    #         f1 = arr.astype('float32')
+    #         d1 = np.zeros((1080, 1920))
+    #     # elif cnt == change_sc[scene-1] + 1:
+    #     else:
+    #         f1 = np.float32(d1) * (1 - alf) + np.float32(arr) * alf
+    #     # else:
+    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+    #
+    #     np.clip(f1, 0, 255, out=f1)
+    #     img = Image.fromarray(f1.astype('uint8'))
+    #     if cnt % 30 == 0:
+    #         print("first smooth", cnt)
+    #     img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+    #
+    #     cnt += 1
 
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -168,9 +170,9 @@ def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
             io.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
         # # f1=np.float32(f1)
         # f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
-        a1 = np.where(a < f1, f1 - a, a - f1)
+        # a1 = np.where(a < f1, f1 - a, a - f1)
         # a1 = np.where(a < f1, f1 - a, 0)
-        # a1 = a - f1
+        a1 = a - f1
         # a1 = a[:, :, 0]
         # a1 = a1[:, :, 0]
         res_1d = np.ravel(a1)[:256 - 1920]
@@ -253,7 +255,12 @@ def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
         # compr= l_kadr==a1
         # fi = np.copy(l_kadr)
         fi = (a1 * np.pi * 2) / 255
-
+        if cnt == 98:
+            # loc_hist = np.histogram(a1.flatten(), 255, (0, 255))
+            plt.hist(fi.flatten(), bins=255)
+            plt.xlabel("Значение полученной фазы", fontsize=20)
+            plt.ylabel("Количество пикселей", fontsize=20)
+            plt.show()
         coord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1), ((fi - np.pi) / np.pi * 2 - 1))
         coord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
                           np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
@@ -270,6 +277,15 @@ def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
         dis = np.abs(mo - mx_sp)
         pr1 = np.min(dis)
 
+        weights = hist2  # массив весов
+        coordinates = bin_centers2  # массив координат
+
+        # Сумма всех весов
+        total_weight = np.sum(weights)
+
+        # Центр тяжести
+        center_of_mass = np.sum(coordinates * weights) / total_weight
+
         mx_sp2 = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
         ver2 = hist2 / np.sum(hist2)
         mo = np.sum(bin_centers2 * ver2)
@@ -278,6 +294,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
 
         idx = np.argmin(np.abs(dis2 - x))
         pr2 = bin_centers2[idx]
+
 
         moment = np.where(pr1 < 0, np.arctan((pr2 / pr1)) + np.pi,
                           np.where(pr2 >= 0, np.arctan((pr2 / pr1)), np.arctan((pr2 / pr1)) + 2 * np.pi))
@@ -318,8 +335,8 @@ def extract(alf, beta, tt, size_wm, rand_fr, PATH_VIDEO):
         if cnt % 10 == 9:
             v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
             vot_sp.append(max(v, 1 - v))
-            extract_RS(cp,
-                       106, 127, Nbit)
+            # extract_RS(cp,
+            #            106, 127, Nbit)
             stop_kadr1.append(max(compare(
                 r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png",
                 io.imread(PATH_IMG)),
@@ -413,20 +430,21 @@ def vot_by_variance(path_imgs, start, end, treshold):
     img1 = Image.fromarray(sum_matrix.astype('uint8'))
     img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
     comp = compare(r"D:/pythonProject/phase_wm\voting" + ".png", io.imread(PATH_IMG))
-    print(count)
-    print(comp)
+
     # extract_RS(sum_matrix, rsc, Nbit)
 
     return comp
 
 
 if __name__ == '__main__':
-    total_count = 1000
+    total_count = 108
     mat_exp = 90
     noise_text = 49
-    np.random.seed(24)
-    # rand_jump = np.random.randint(total_count, size=6)
-    rand_jump = np.random.randint(total_count, size=67)
+    noise_sensor = 100
+    np.random.seed(42)
+    rand_jump = np.random.choice(range(1, total_count), size=7, replace=False)
+    # rand_jump = np.array([19, 49, 82, 40])
+    # rand_jump = np.random.randint(total_count, size=67)
     rand_jump = np.insert(rand_jump, 0, 0)
 
     print(rand_jump)
@@ -438,8 +456,8 @@ if __name__ == '__main__':
     ampl = 1
     # alfa = 0.9995
     # alfa_exper = 0.99
-    betta = 0.959
-    alfa = 0.999
+    # betta = 0.959
+    alfa = 0.93
 
     bitr = "orig"
     teta = 3
@@ -455,10 +473,10 @@ if __name__ == '__main__':
     #                   input_folder)
 
     # create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, params_ACF, total_count, hc_const, noise_text,
-    #                        rand_jump)
-    embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-    vid_path = generate_video(bitr, output_folder)
-    for betta in np.arange(0.899, 0.9991, 0.02):
+    #                        noise_sensor, rand_jump)
+    # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+    # vid_path = generate_video(bitr, output_folder)
+    for betta in np.arange(0.89, 0.991, 0.02):
         # params_ACF_lst = list(params_ACF)
         # params_ACF_lst[2] = beta_acf
         # params_ACF = tuple(params_ACF_lst)
@@ -470,6 +488,7 @@ if __name__ == '__main__':
         stop_kadr2_bin = []
         # if mat_exp != 50:
 
-        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
-        print("Zatukhanie", betta)
+        # l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
+        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
+        print("zatukhaniye", betta)
     print("Acc-cy of last frame", l_fr)

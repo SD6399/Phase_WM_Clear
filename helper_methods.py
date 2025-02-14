@@ -13,14 +13,14 @@ from skimage import io
 size_quadr = 16
 
 
-def read_video(path, path_to_save):
+def read_video(path, path_to_save, final_frame):
     vidcap = cv2.VideoCapture(path)
     count_frame = 0
     success = True
     while success:
         success, image = vidcap.read()
 
-        if success:
+        if success and (count_frame < final_frame):
             gray_frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             # gray_frame = image
             # cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
@@ -590,6 +590,7 @@ def check_energ_spector():
     plt.show()
 
 
+"""
 # math_exp = [i for i in np.arange(1500, 3501, 500)]
 cef_cor_txt = [0.014, 0.029, 0.044, 0.059]
 # ampl1 = [0.9108698396667088, 0.8793081681605858, 0.9409165509405378, 0.9550561797752809, 0.9739931826789546,
@@ -625,21 +626,6 @@ cef_cor_txt = [0.014, 0.029, 0.044, 0.059]
 #
 # acc_70 = [0.9875015780835753, 0.985734124479232, 0.98485039767706, 0.9799267769221058]
 
-# Generate sample data
-x = np.linspace(0, 10, 100)
-y = np.sin(x)
-
-# Create a plot
-plt.plot(x, y, label='sin(x)')
-plt.title('Sample Plot')  # Add title
-plt.xlabel('X-axis')  # Add X-axis label
-plt.ylabel('Y-axis')  # Add Y-axis label
-plt.legend()  # Add legend
-
-# Save the plot as .eps (ensure labels and title are set before saving)
-plt.savefig('plot_with_labels.eps', format='eps', dpi=1000)
-
-plt.show()
 
 tet01 = [0.541850776417119, 0.6259310693094307, 0.5946218911753567, 0.6380507511677819, 0.6619113748264108,
          0.6322434036106552, 0.6346420906451206, 0.5861633632117157, 0.5582628456003029, 0.5778310819340993,
@@ -876,34 +862,4 @@ plt.xlabel("Дисперсия текстуры в кадре", fontsize=20)
 plt.ylabel("Точность извлечения", fontsize=20)
 plt.title("Синтезированное видео с усредненными параметрами", fontsize=20)
 # plt.show()
-
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Данные для графика
-x = np.arange(325, 1001, 150)
-y = [0.9900265118040651, 0.9900265118040651, 0.9878803181416488, 0.985355384421159, 0.9883853048857467]
-
-# Создание фигуры и осей
-fig, ax = plt.subplots(figsize=(8, 6))
-
-# Построение графика
-ax.plot(x, y, )
-
-# Подписи осей
-ax.set_xlabel(r'Дисперсия текстуры в кадре $Dт$ ', fontsize=20)
-ax.set_ylabel(r'Точность извлечения $P$ ', fontsize=20)
-
-# Настройка сетки и легенды
-ax.grid(True)
-
-# Установка пределов осей
-
-ax.set_ylim(0.96, 1.001)
-
-# Установка заголовка
-ax.set_title('Синтезированное видео с усредненными параметрами', fontsize=16)
-
-# Показ графика
-plt.show()
+"""
