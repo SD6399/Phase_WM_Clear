@@ -148,10 +148,24 @@ def smoothing(path, filename, path_to_save, coef):
 def embed(my_i, count,tt, var):
     cnt = 0
 
+
+
     # PATH_IMG = r"D:/pythonProject//phase_wm\some_qr.png"
     PATH_IMG =r"D:/local_foldr/phase_wm_in_video/data/RS_cod89x89.png"
     st_qr = cv2.imread(PATH_IMG)
     st_qr = cv2.cvtColor(st_qr, cv2.COLOR_RGB2YCrCb)[:, :, 0]
+
+    data_length = st_qr.size
+    shuf_order = np.arange(data_length)
+
+    st_qr_1d = st_qr.ravel()
+    shuffled_data = st_qr_1d[shuf_order]  # Shuffle the original data
+
+    # 1d-string in the image
+    pict = np.resize(shuffled_data, (1057, 1920))
+    # the last elements are uninformative. Therefore, we make zeros
+    pict[-1, 256 - 1920:] = 0
+
 
     # small_qr = big2small(st_qr[:,:,0])
     # coding_qr = np.zeros(small_qr.shape)
@@ -174,13 +188,17 @@ def embed(my_i, count,tt, var):
         a = imgg
         # a = cv2.cvtColor(imgg, cv2.COLOR_RGB2YCrCb)
 
-        temp = np.where(st_qr == 255, 1, 0)
+        temp = np.where(pict == 255, 1, 0)
+
         # wm = np.asarray(my_i * ((-1) ** cnt) * temp)
         wm_n = np.array((my_i * np.sin(cnt * tt + temp)))
 
-        a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm_n) > 255, 255,
-                                           np.where(a[20:1060, 440:1480, 0] + wm_n < 0, 0,
-                                                    np.float32(a[20:1060, 440:1480, 0] + wm_n)))
+        # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm_n) > 255, 255,
+        #                                    np.where(a[20:1060, 440:1480, 0] + wm_n < 0, 0,
+        #                                             np.float32(a[20:1060, 440:1480, 0] + wm_n)))
+
+        a[0:1057, :, 0] = np.where(np.float32(a[0:1057, :, 0] + wm_n) > 255, 255,
+                                   np.where(a[0:1057, :, 0] + wm_n < 0, 0, np.float32(a[0:1057, :, 0] + wm_n)))
         # tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2BGR)
 
         row, col, ch = a.shape
@@ -737,7 +755,7 @@ if __name__ == '__main__':
 
     squ_size = 4
     for_fi = 6
-    br = 3.5
+    br = 35
     # графики-сравнения по различныи параметрам
 
     PATH_VIDEO = [r'D:/pythonProject/phase_wm/RealBarca.mp4']
@@ -771,9 +789,9 @@ if __name__ == '__main__':
     # bitr = 5.4
     ampl = 3
     teta = 3
-    count_of_frames = read_video(PATH_VIDEO[0], "D:/phase_wm_graps/BBC/frames_orig_video")
+    # count_of_frames = read_video(PATH_VIDEO[0], "D:/phase_wm_graps/BBC/frames_orig_video")
     for bitrate21 in [5]:
-        # embed(ampl, total_count, teta, 0)
+        embed(ampl, total_count, teta, 0)
         generate_video(bitrate21)
 
         stop_kadr1 = []
