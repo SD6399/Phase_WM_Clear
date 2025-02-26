@@ -168,7 +168,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
-    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
+    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
 
     cnt = int(rand_fr)
     g = np.asarray([])
@@ -588,7 +588,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
         variance.append(np.var(test_var - img_wm))
         bin_qr_spector = np.zeros((49, 49))
         count_quadr = 0
-        if cnt % 10 == 9:
+        if cnt % 1 == 0:
             # ser6 = []
             spector = np.zeros((size_wm, size_wm))
             for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 16):
@@ -604,21 +604,26 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             #                            r".png"),
             #                        shift_qr))
             # bin_qr_spector += tmp_bin_spector
-            if cnt == 2799:
-                print("count quadr", count_quadr)
+
             # bin_qr_spector = np.where(bin_qr_spector > np.mean(bin_qr_spector), 255, 0)
             stop_kadr1.append(
                 compare_qr(spector,
-                           io.imread(r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm_1024_shift_0_49.png"),
-                           shift_qr), )
-            print(ampl, alf, cnt, stop_kadr1)
+                           io.imread(
+                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_check_ifft_wm_1024_shift_0_49.png"),
+                           shift_qr, cnt), )
 
-            if cnt % 200 == 199:
-                # print(max(ser6), min(ser6), np.mean(ser6))
-                # print(ser6)
-                img = Image.fromarray(spector.astype('uint8'))
-                img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
+            if cnt % 10 == 9:
+                v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
+                vot_sp.append(max(v, 1 - v))
                 print(ampl, alf, cnt, stop_kadr1)
+                print("after voting", tt, vot_sp)
+
+            # if cnt % 200 == 199:
+            #     # print(max(ser6), min(ser6), np.mean(ser6))
+            #     # print(ser6)
+            #     img = Image.fromarray(spector.astype('uint8'))
+            #     img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
+            #     print(ampl, alf, cnt, stop_kadr1)
             # stop_kadr1.append(ser6)
 
         cnt += 1
@@ -669,7 +674,7 @@ def generate_video(bitr, image_folder):
 
 def vot_by_variance(path_imgs, start, end, treshold):
     var_list = csv2list(r"D:/pythonProject/\phase_wm/RB_disp.csv")[start:end]
-    sum_matrix = np.zeros((int(img_wm.shape[0] / 16), int(img_wm.shape[1] / 16)))
+    sum_matrix = np.zeros((49, 49))
     np_list = np.array(var_list)
     need_ind = [i for i in range(len(np_list)) if np_list[i] > treshold]
     i = start
@@ -686,38 +691,42 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
     sum_matrix[sum_matrix <= count * 0.5] = 0
     sum_matrix[sum_matrix > count * 0.5] = 255
-    img1 = Image.fromarray(sum_matrix.astype('uint8'))
-    img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
-    comp = compare_qr(r"D:/pythonProject/phase_wm\voting" + ".png", io.imread(PATH_IMG), 50)
-    print(count)
-    print(comp)
-    # extract_RS(sum_matrix, rsc, Nbit)
+    print(np.count_nonzero(sum_matrix))
+    # img1 = Image.fromarray(sum_matrix.astype('uint8'))
+    # img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
+    orig_qr = io.imread(r"D:\pythonProject\Phase_WM_Clear/data/test_qr_49_49.png")
+    orig_qr = np.where(orig_qr > 127, 255, 0)
+
+    sr_matr = orig_qr == sum_matrix
+    k = np.count_nonzero(sr_matr)
+    comp = k / sr_matr.size
 
     return comp
 
 
 if __name__ == '__main__':
-    total_count = 107
+    total_count = 307
     # l_fr = []
     ampl = 2
     teta = 2.9
-    # alfa = 0.0005
+    alfa = 0.005
     betta = 0.999
     # teta = 2.6
     bitr = "orig"
     shift = 0
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/spatial_spectr_1024_in_shift_0_wm_49.png"
+    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_spatial_spectr_1024_in_shift_0_wm_49.png"
 
     img_wm = io.imread(PATH_IMG)
 
     # count = read_video(r'D:/pythonProject/phase_wm/Road.mp4',
     #                    input_folder, total_count)
     #
-    # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-    # generate_video(bitr, output_folder)
-    for alfa in [0.005, 0.05, 0.2, 0.4]:
+
+    for ampl in [1, 2, 3]:
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        generate_video(bitr, output_folder)
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -729,21 +738,21 @@ if __name__ == '__main__':
 
         var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift)
 
-        with open(
-                r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
-                    ampl) + '_bitr' + str(
-                    bitr) + "_shift" + str(shift) + '.txt',
-                'w') as file:
-            for var in var_list:
-                file.write(str(var) + "\n")
-
-        with open(
-                r'D:/pythonProject/Phase_WM_Clear\data/acc_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
-                    ampl) + '_bitr' + str(
-                    bitr) + "_shift" + str(shift) + '.txt',
-                'w') as file:
-            for val in ext_values:
-                file.write(str(val) + "\n")
+        # with open(
+        #         r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
+        #             ampl) + '_bitr' + str(
+        #             bitr) + "_shift" + str(shift) + '.txt',
+        #         'w') as file:
+        #     for var in var_list:
+        #         file.write(str(var) + "\n")
+        #
+        # with open(
+        #         r'D:/pythonProject/Phase_WM_Clear\data/acc_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
+        #             ampl) + '_bitr' + str(
+        #             bitr) + "_shift" + str(shift) + '.txt',
+        #         'w') as file:
+        #     for val in ext_values:
+        #         file.write(str(val) + "\n")
 
     # plt.plot(var_list)
     # plt.grid(True)

@@ -5,6 +5,37 @@ from scipy.fftpack import fft2, fftshift
 from skimage import data, color
 
 
+def compare_qr(myqr, orig_qr, shift):
+    """
+     Comparing the extracted QR with the original one
+    :param path: path to code for comparison
+    :return: percentage of similarity
+    """
+
+    # orig_qr = io.imread(r"data/RS_cod89x89.png")
+    # orig_cut = np.zeros((49, 49))
+    # orig_qr = np.where(orig_qr > 127, 255, 0)
+    # orig_cut[:, :24] = orig_qr[1 + shift:50 + shift, 1 + shift:25 + shift]
+    # if shift != 0:
+    #     orig_cut[:, 24:] = orig_qr[1 + shift:50 + shift, -25 - shift:-shift]
+    # else:
+    #     orig_cut[:, 24:] = orig_qr[1 + shift:50 + shift, -25 - shift:]
+    # small_qr = big2small(orig_qr)
+    # sr_matr = np.zeros((1424, 1424, 3))
+    # myqr = io.imread(path)
+
+    # myqr_cut = myqr
+    myqr_cut = np.zeros((49, 49))
+
+    myqr_cut[:, :24] = myqr[1 + shift:50 + shift, 1 + shift:25 + shift]
+    myqr_cut[:, 24:] = myqr[1 + shift:50 + shift, -25 - shift:]
+    myqr_cut = np.where(myqr_cut > np.mean(myqr_cut), 255, 0)
+
+    sr_matr = orig_cut == myqr_cut
+    k = np.count_nonzero(sr_matr)
+    return k / sr_matr.size
+
+
 def spectr_to_spatial(qr, size_WM):
     qr_back = np.zeros((size_WM, size_WM)).astype(complex)
     shift = 0
@@ -35,7 +66,7 @@ def spectr_to_spatial(qr, size_WM):
             else:
                 qr_back[-shift - (i + 1), shift + j] = np.conj(qr_back[shift + i + 1, -j])
 
-    my_fft = np.fft.fft2(qr_back)
+    my_fft = np.fft.ifft2(qr_back)
     print(np.min(my_fft), np.max(my_fft))
     my_fft = 255 * (my_fft - np.min(my_fft)) / (np.max(my_fft) - np.min(my_fft))
     print(my_fft.imag)
@@ -43,7 +74,7 @@ def spectr_to_spatial(qr, size_WM):
 
 
 def check_spatial2spectr(qr_spatial):
-    ifft = np.fft.ifft2(qr_spatial)
+    ifft = np.fft.fft2(qr_spatial)
 
     ifft[0, 0] = 0  # - КОСТЫЛЬ
 
@@ -65,14 +96,15 @@ def energy_spector(image):
     return norm_eval
 
 
-#
 # qr_spectr = io.imread("data/test_qr_49_49.png")
-# spatial_qr = spectr_to_spatial(qr_spectr, 1024)
+# spatial_qr = spectr_to_spatial(qr_spectr, 256)
+#
 # img1 = Image.fromarray(spatial_qr.astype('uint8'))
-# img1.save(r"data/spatial_spectr_1024_in_shift_0_wm_49.png")
+# img1.save(r"data/attempt_spatial_spectr_256_in_shift_0_wm_49.png")
 # #
-# qr_spatal = io.imread("data/spatial_spectr_1024_in_shift_0_wm_49.png")
+# qr_spatal = io.imread("data/attempt_spatial_spectr_256_in_shift_0_wm_49.png")
 #
 # check_qr = check_spatial2spectr(qr_spatal)
 # img2 = Image.fromarray(check_qr.astype('uint8'))
-# img2.save(r"data/check_ifft_wm_1024_shift_0_49.png")
+# img2.save(r"data/attempt_check_ifft_wm_256_shift_0_49.png")
+# print(compare_qr(check_qr, qr_spectr, 0))
