@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 
 alf01 = [0.8683881715951687, 0.8359017076218243, 0.9496043315285297, 0.9541857559350271, 0.9820907955018742,
          0.9979175343606831, 0.9966680549770929, 0.9958350687213661, 0.9995835068721366, 0.9987505206164098]
@@ -41,4 +42,14 @@ plt.xlabel("Номер кадра", fontsize=20)
 plt.ylabel("Точность извлечения", fontsize=20)
 plt.title("Road", fontsize=20)
 plt.legend(fontsize=20)
-plt.show()
+# plt.show()
+psnr_full = 0
+for i in range(50):
+    image1 = cv2.imread("D:/pythonProject/phase_wm/frames_after_emb/frame%d.png" % i)
+    image2 = cv2.imread("D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % i)
+
+    psnr_full += (cv2.PSNR(image1, image2))
+
+print(psnr_full / 50)
+
+# Для А=1 psnr = 52; для А = 2 psnr = 46 для А=3 psnr = 43
