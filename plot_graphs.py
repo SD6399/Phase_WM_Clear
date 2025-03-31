@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 
 lst_two_filters = [0.774649665446282, 0.8112612043933847, 0.7544501956823634, 0.7482641080671633, 0.7468753945208938,
                    0.7635399570761268, 0.7959853553844212, 0.7958591086983967, 0.7752808988764045, 0.7730084585279636,
@@ -14,9 +15,21 @@ lst_one_filter = [0.7095063754576443, 0.767201110970837, 0.7745234187602575, 0.7
                   0.9132685267011741, 0.9271556621638682, 0.9279131422800152, 0.9303118293144805, 0.9590960737280646,
                   0.9799267769221058, 0.9878803181416488, 0.9862391112233304, 0.9856078777932079]
 
-plt.plot(range(99, 2900, 100), lst_two_filters, label="Applied two filters")
-plt.plot(range(99, 2900, 100), lst_one_filter, label="Applied one filter")
-plt.grid(True)
-plt.title("QR was embedded. Compressed with bitrate = 10m bits per sec")
-plt.legend()
-plt.show()
+# plt.plot(range(99, 2900, 100), lst_two_filters, label="Applied two filters")
+# plt.plot(range(99, 2900, 100), lst_one_filter, label="Applied one filter")
+# plt.grid(True)
+# plt.title("QR was embedded. Compressed with bitrate = 10m bits per sec")
+# plt.legend()
+# plt.show()
+
+full_psnr = 0
+
+for i in range(50):
+    image1 = cv2.imread("D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % i)
+    image2 = cv2.imread("D:/pythonProject/phase_wm/frames_after_emb/frame%d.png" % i)
+
+    full_psnr += cv2.PSNR(image1, image2)
+
+print(full_psnr / 50)
+
+# PSNR A=1 46.2 A=2 45.3 A=3 41.82
