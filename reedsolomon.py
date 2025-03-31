@@ -87,41 +87,16 @@ def extract_RS(image_RS, nsym, nsize, count):
         rmes1, rmesecc1, errata_pos1 = rsc.decode(final_extract)
         print(rmes1)
 
-    except :
+    except:
         rmes1 = ''
         print("Error of decoder")
 
     return rmes1
 
 
-len_side_code = 89
+if __name__ == '__main__':
+    len_side_code = 89
 
-mes = 7 * b'Correct extraction of'
-print(len(mes))
-Nbit = create_RS_code(mes, 106, 127, len_side_code, "data/RS_cod89x89.png")
-print(Nbit)
-
-# extr_RS = io.imread(r"D:\pythonProject\\phase_wm\RS_cod89x89.png")
-# left = 0
-# right = 138
-# n = 89
-# count = 0
-# for sid in range(0, 100, 1):
-#     extr_R = io.imread(r"D:\pythonProject\\phase_wm\RS_cod89x89.png")
-#     random.seed(sid)
-#     sampl = sample(list(combinations(range(0, n), 2)), right)
-#     print(len(sampl))
-#     for i in range(left, right):
-#
-#         extr_R[sampl[i][0] * 16:sampl[i][0] * 16 + 16, sampl[i][1] * 16:sampl[i][1] * 16 + 16] = np.where(
-#             extr_R[sampl[i][0] * 16:sampl[i][0] * 16 + 16, sampl[i][1] * 16:sampl[i][1] * 16 + 16] == 255, 0, 255)
-#
-#     # extr_RS[0:1040,0:16*16]=0
-#     comp=extr_RS==extr_R
-#     at=(np.sum(comp==True))
-#     # print(at/extr_R.size)
-#     # print((right - left) / (89 * 89))
-#     if (extract_RS2(extr_R, rsc, Nbit)) != '':
-#         count += 1
-#
-# print(count)
+    mes = 7 * b'Correct extraction of'
+    print(len(mes))
+    Nbit = create_RS_code(mes, 106, 127, len_side_code, "data/RS_cod89x89.png")

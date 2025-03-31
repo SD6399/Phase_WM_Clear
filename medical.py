@@ -1,16 +1,25 @@
 import nibabel as nib
 import numpy as np
 import matplotlib.pyplot as plt
-#==================================
+# ==================================
 # load image (4D) [X,Y,Z_slice,time]
+from skimage import io
+from PIL import Image
 
-t1 = nib.load('D:\Task01_BrainTumour\imagesTr/BRATS_001.nii.gz')
-data = t1.get_fdata()
-print(data.shape)
-plt.imshow(data[:, :, data.shape[2] // 2,0].T, cmap='Greys_r')
+# Устанавливаем нужное соотношение сторон 3:4
+image = io.imread("D:\Downloads\Telegram Desktop/IMG_20250317_205613.jpg")
 
+image = image[1000:3400, 400:3600]
 
-plt.show()
+img1 = Image.fromarray(image.astype('uint8'))
+img1.save(r"D:\Downloads\Telegram Desktop/crop_i.png")
+
+# t1 = nib.load('D:\Task01_BrainTumour\imagesTr/BRATS_001.nii.gz')
+# data = t1.get_fdata()
+# print(data.shape)
+# plt.imshow(data[:, :, data.shape[2] // 2, 0].T, cmap='Greys_r')
+#
+# plt.show()
 """
 nii_data = nii_img.get_fdata()
 
