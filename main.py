@@ -732,7 +732,7 @@ if __name__ == '__main__':
     #                    input_folder, total_count)
     #
 
-    bitr = 5
+    bitr = "orig"
     for ampl in [4]:
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
         psnr_full = 0
