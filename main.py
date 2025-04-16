@@ -109,6 +109,16 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
     read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', count)
+
+    full_psnr = 0
+    for i in range(50):
+        image1 = cv2.imread("D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % i)
+        image2 = cv2.imread("D:/pythonProject/phase_wm/extract/frame%d.png" % i)
+
+        full_psnr += cv2.PSNR(image1, image2)
+
+    print(full_psnr / 50, "PSNR after compress")
+
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -391,12 +401,12 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
     l_fr = []
-    ampl = 2
+    ampl = 3
     alfa = 0.0005
     betta = 0.999
     teta = 2.9
     bitr = 5
-    total_count = 307
+    total_count = 607
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
@@ -409,7 +419,16 @@ if __name__ == '__main__':
     vot_sp = []
     stop_kadr1 = []
 
-    # embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
+    embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
+    full_psnr = 0
+    for i in range(50):
+        image1 = cv2.imread("D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % i)
+        image2 = cv2.imread("D:/pythonProject/phase_wm/frames_after_emb/frame%d.png" % i)
+
+        full_psnr += cv2.PSNR(image1, image2)
+
+    print(full_psnr / 50, "PSNR after embed")
+
     generate_video(5, output_folder)
     l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, total_count))
 
