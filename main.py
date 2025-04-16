@@ -169,7 +169,14 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
     count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
+    psnr_full = 0
+    for i in range(50):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/extract/frame" + str(i) + ".png")
 
+        psnr_full += (cv2.PSNR(image1, image2))
+
+    print("A = ", ampl, "PSNR: ", psnr_full / 50)
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -706,9 +713,9 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-    total_count = 608
+    total_count = 308
     # l_fr = []
-    ampl = 2
+    ampl = 4
     teta = 2.9
     alfa = 0.005
     betta = 0.999
