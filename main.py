@@ -199,8 +199,8 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
 
         cnt += 1
 
-    print("orig", orig100)
-    print("smooth", smooth100)
+    # print("orig", orig100)
+    # print("smooth", smooth100)
     # plt.plot(orig100,label = "orig")
     # plt.plot(smooth100,label = "smooth")
     # plt.legend()
@@ -588,13 +588,13 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
         variance.append(np.var(test_var - img_wm))
         bin_qr_spector = np.zeros((49, 49))
         count_quadr = 0
-        if cnt % 1 == 0:
+        if cnt % 10 == 9:
             # ser6 = []
             spector = np.zeros((size_wm, size_wm))
             for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 16):
                 for col_ind in range(0, l_kadr.shape[1] - size_wm + 1, 16):
                     # print(row_ind, col_ind, l_kadr.shape)
-                    spector += check_spatial2spectr(l_kadr[row_ind:row_ind + size_wm, col_ind:col_ind + size_wm]) / 57
+                    spector += check_spatial2spectr(l_kadr[row_ind:row_ind + size_wm, col_ind:col_ind + size_wm]) / 8
 
                     count_quadr += 1
             # tmp_bin_spector = binarize_qr(spector, shift_qr)
@@ -606,17 +606,18 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             # bin_qr_spector += tmp_bin_spector
 
             # bin_qr_spector = np.where(bin_qr_spector > np.mean(bin_qr_spector), 255, 0)
-            stop_kadr1.append(
+            stop_kadr1.append(round(
                 compare_qr(spector,
                            io.imread(
-                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_check_ifft_wm_1024_shift_0_49.png"),
-                           shift_qr, cnt), )
+                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_40_49.png"),
+                           shift_qr, cnt), 5))
 
-            if cnt % 10 == 9:
-                v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
-                vot_sp.append(max(v, 1 - v))
+            if cnt % 30 == 29:
+                # v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - 1000), cnt,
+                #                     0.045)
+                # vot_sp.append(round(max(v, 1 - v), 5))
                 print(ampl, alf, cnt, stop_kadr1)
-                print("after voting", tt, vot_sp)
+                # print("after voting", cnt, tt, vot_sp)
 
             # if cnt % 200 == 199:
             #     # print(max(ser6), min(ser6), np.mean(ser6))
@@ -705,18 +706,18 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-    total_count = 307
+    total_count = 608
     # l_fr = []
     ampl = 2
     teta = 2.9
     alfa = 0.005
     betta = 0.999
     # teta = 2.6
-    bitr = "orig"
-    shift = 0
+    # bitr = 20
+    shift = 40
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_spatial_spectr_1024_in_shift_0_wm_49.png"
+    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_40_wm_49.png"
 
     img_wm = io.imread(PATH_IMG)
 
@@ -724,9 +725,10 @@ if __name__ == '__main__':
     #                    input_folder, total_count)
     #
 
-    for ampl in [1, 2, 3]:
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        generate_video(bitr, output_folder)
+    embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+    for bitr in ["orig", 20, 10, 5]:
+        if bitr != 50:
+            generate_video(bitr, output_folder)
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []

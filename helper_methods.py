@@ -284,7 +284,7 @@ def compare_qr(myqr, orig_qr, shift, cnt):
     :param path: path to code for comparison
     :return: percentage of similarity
     """
-    size_wm = 49
+    size_wm = 65
     # orig_qr = io.imread(r"data/RS_cod89x89.png")
     orig_cut = np.zeros((size_wm, size_wm))
     orig_qr = np.where(orig_qr > 127, 255, 0)
@@ -305,8 +305,12 @@ def compare_qr(myqr, orig_qr, shift, cnt):
 
     myqr_cut[:, :int(size_wm / 2)] = myqr[1 + shift:size_wm + 1 + shift,
                                      1 + shift:np.ceil(size_wm / 2).astype(int) + shift]
-    myqr_cut[:, int(size_wm / 2):] = myqr[1 + shift:size_wm + 1 + shift,
-                                     -1 * (np.ceil(size_wm / 2).astype(int)) - shift:]
+    if shift== 0:
+        myqr_cut[:, int(size_wm / 2):] = myqr[1 + shift:size_wm + 1 + shift,
+                                         -1 * (np.ceil(size_wm / 2).astype(int)) - shift:]
+    else:
+        myqr_cut[:, int(size_wm / 2):] = myqr[1 + shift:size_wm + 1 + shift,
+                                     -1 * (np.ceil(size_wm / 2).astype(int)) - shift:-shift]
     myqr_cut = np.where(myqr_cut > np.mean(myqr_cut), 255, 0)
 
     img = Image.fromarray(myqr_cut.astype('uint8'))
@@ -598,15 +602,15 @@ a1_177 = [0.6588921282798834, 0.6463973344439816, 0.6601416076634735, 0.71137026
           0.9379425239483549, 0.9400249895876718, 0.941274468971262, 0.941274468971262, 0.941274468971262,
           0.941274468971262, 0.941274468971262, 0.941274468971262, 0.941274468971262, 0.941274468971262]
 
-plt.plot(range(10, 308, 10), a1, label="A = 1", )
-plt.plot(range(10, 308, 10), a2, label="A = 2", )
-plt.plot(range(10, 308, 10), a3, label="A = 3", )
-plt.legend(fontsize=20)
-plt.grid(True)
-plt.xlabel("Номер кадра", fontsize=20)
-plt.ylabel("Процент корректно извлеченных битов", fontsize=20)
-plt.title("RealBarca", fontsize=20)
-plt.show()
+# plt.plot(range(10, 308, 10), a1, label="A = 1", )
+# plt.plot(range(10, 308, 10), a2, label="A = 2", )
+# plt.plot(range(10, 308, 10), a3, label="A = 3", )
+# plt.legend(fontsize=20)
+# plt.grid(True)
+# plt.xlabel("Номер кадра", fontsize=20)
+# plt.ylabel("Процент корректно извлеченных битов", fontsize=20)
+# plt.title("RealBarca", fontsize=20)
+# plt.show()
 from scpetrcal_halftone import energy_spector
 
 
@@ -639,6 +643,6 @@ def check_energ_spector():
     img2.save(r"data/energ_spector_diff_img.png")
     dif_val = np.array(dif_val)
     dif_val /= np.max(dif_val)
-    plt.plot(dif_val)
-    plt.plot(qr_acc)
-    plt.show()
+    # plt.plot(dif_val)
+    # plt.plot(qr_acc)
+    # plt.show()
