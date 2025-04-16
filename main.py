@@ -609,7 +609,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             stop_kadr1.append(round(
                 compare_qr(spector,
                            io.imread(
-                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_40_49.png"),
+                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_0_49.png"),
                            shift_qr, cnt), 5))
 
             if cnt % 30 == 29:
@@ -714,10 +714,10 @@ if __name__ == '__main__':
     betta = 0.999
     # teta = 2.6
     # bitr = 20
-    shift = 40
+    shift = 0
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_40_wm_49.png"
+    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_0_wm_49.png"
 
     img_wm = io.imread(PATH_IMG)
 
@@ -725,8 +725,18 @@ if __name__ == '__main__':
     #                    input_folder, total_count)
     #
 
-    embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-    for bitr in ["orig", 20, 10, 5]:
+    bitr = 5
+    for ampl in [4]:
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+        psnr_full = 0
+        for i in range(50):
+            image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+            image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+
+            psnr_full += (cv2.PSNR(image1, image2))
+
+        print("A = ", ampl, "PSNR: ", psnr_full / 50)
+
         if bitr != 50:
             generate_video(bitr, output_folder)
         rand_k = 0
