@@ -24,12 +24,26 @@ lst_one_filter = [0.7095063754576443, 0.767201110970837, 0.7745234187602575, 0.7
 
 full_psnr = 0
 
-for i in range(50):
-    image1 = cv2.imread("D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % i)
-    image2 = cv2.imread("D:/pythonProject/phase_wm/frames_after_emb/frame%d.png" % i)
-
-    full_psnr += cv2.PSNR(image1, image2)
-
-print(full_psnr / 50)
+# for i in range(50):
+#     image1 = cv2.imread("D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % i)
+#     image2 = cv2.imread("D:/pythonProject/phase_wm/frames_after_emb/frame%d.png" % i)
+#
+#     full_psnr += cv2.PSNR(image1, image2)
+#
+# print(full_psnr / 50)
 
 # PSNR A=1 46.2 A=2 45.3 A=3 41.82
+
+lst = [0.93775, 0.88024, 0.95716, 0.96331, 0.98012, 0.99858, 0.98793, 0.99243, 0.99337, 0.99976, 0.99882, 0.98959,
+       0.9955, 0.99905, 0.99905, 0.99976, 0.99882, 1.0, 0.99976, 0.99905, 0.99976, 0.99858, 0.99953, 1.0, 0.99882, 1.0,
+       0.99929, 0.99976, 1.0, 0.99858]
+
+plt.plot(np.arange(10, 307, 10), lst, label="Spectral Method")
+plt.plot(np.arange(10, 307, 10), [1] * 30, label="Original Method")
+
+plt.xlabel("Number of Frame", fontsize=20)
+plt.ylabel("Accuracy", fontsize=20)
+plt.title("RealBarca. Comparison", fontsize=20)
+plt.legend(fontsize=20)
+plt.grid(True)
+plt.show()

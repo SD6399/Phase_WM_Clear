@@ -11,7 +11,7 @@ from PIL import Image, ImageFile
 # from qrcode_1 import read_qr, correct_qr
 from helper_methods import small2big, big2small, sort_spis, read_video
 from helper_methods import csv2list, bit_voting, read2list
-from reedsolomon import extract_RS, Nbit
+# from reedsolomon import extract_RS, Nbit
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import matplotlib.pyplot as plt
@@ -106,9 +106,16 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     :param rand_fr: the frame from which the extraction begins
     :return: the path to the final image
     """
-    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\need_video.mp4'
+    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
     read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', count)
+    psnr_full = 0
+    for i in range(50):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/extract/frame" + str(i) + ".png")
+
+        psnr_full += (cv2.PSNR(image1, image2))
+    print("A = ", ampl, "PSNR: ", psnr_full / 50)
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -219,12 +226,12 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
 
         fi = (a1 * np.pi * 2) / 255
 
-        if cnt > 63:
-            # loc_hist = np.histogram(a1.flatten(), 255, (0, 255))
-            plt.hist(fi.flatten(), bins=255)
-            plt.xlabel("Значение полученной фазы", fontsize=20)
-            plt.ylabel("Количество пикселей", fontsize=20)
-            plt.show()
+        # if cnt > 63:
+        #     # loc_hist = np.histogram(a1.flatten(), 255, (0, 255))
+        #     plt.hist(fi.flatten(), bins=255)
+        #     plt.xlabel("Значение полученной фазы", fontsize=20)
+        #     plt.ylabel("Количество пикселей", fontsize=20)
+        #     plt.show()
         coord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1), ((fi - np.pi) / np.pi * 2 - 1))
         coord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
                           np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
@@ -286,18 +293,18 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
         imgc.save(
             r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
 
-        if cnt % 100 == 99:
-            v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
-            vot_sp.append(max(v, 1 - v))
-            extract_RS(cp,
-                       106, 127, Nbit)
+        if cnt % 10 == 9:
+            # v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
+            # vot_sp.append(max(v, 1 - v))
+            # extract_RS(cp,
+            #            106, 127, Nbit)
             stop_kadr1.append(max(compare(
                 r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png",
                 io.imread(PATH_IMG)),
                 1 - compare(
                     r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(
                         cnt) + ".png", io.imread(PATH_IMG))))
-            if cnt % 100 == 99:
+            if cnt % 30 == 29:
                 print(tt, cnt, stop_kadr1)
                 print("after voting", tt, vot_sp)
 
@@ -313,7 +320,10 @@ def generate_video(bitr, image_folder):
     :param bitr: bitrate of output video
     """
 
-    video_name = 'need_video.mp4'
+    if bitr != "orig":
+        video_name = 'need_video.mp4'
+    else:
+        video_name = "RB_codec.mp4"
     os.chdir(r"D:/pythonProject/phase_wm\frames_after_emb")
 
     images = [img for img in os.listdir(image_folder)
@@ -340,8 +350,7 @@ def generate_video(bitr, image_folder):
         os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
                   f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
         return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
-    else:
-        return "D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4"
+
 
 
 def compare(path, orig_qr):
@@ -390,25 +399,32 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
     l_fr = []
-    ampl = 1
+    ampl = 3.5
     alfa = 0.0005
     betta = 0.999
     teta = 2.9
-    bitr = 5
-    total_count = 297
+    bitr = "orig"
+    total_count = 307
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
     PATH_IMG = r"D:\pythonProject\Phase_WM_Clear\data/test_qr_89_89.png"
     img_wm = io.imread(PATH_IMG)
-    read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
-               input_folder, total_count)
+    # read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
+    #            input_folder, total_count)
 
     rand_k = 0
     vot_sp = []
     stop_kadr1 = []
 
-    embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
+    # embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
+    psnr_full = 0
+    for i in range(50):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+
+        psnr_full += (cv2.PSNR(image1, image2))
+    print("A = ", ampl, "PSNR: ", psnr_full / 50)
     generate_video("orig", output_folder)
     l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, total_count))
 
