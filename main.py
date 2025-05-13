@@ -155,7 +155,7 @@ def read2list(file):
     return lines
 
 
-def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
+def extract(alf, beta, tt, size_wm, rand_fr, shift_qr, st_vot):
     """
     Procedure embedding
     :param shift_qr: shift for spectral WM from (0,0)
@@ -593,9 +593,9 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
                 test_var += l_kadr[row_ind:row_ind + size_wm, col_ind:col_ind + size_wm] / 6
 
         variance.append(np.var(test_var - img_wm))
-        bin_qr_spector = np.zeros((49, 49))
+
         count_quadr = 0
-        if cnt % 10 == 9:
+        if cnt % 1 == 0:
             # ser6 = []
             spector = np.zeros((size_wm, size_wm))
             for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 16):
@@ -613,18 +613,21 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             # bin_qr_spector += tmp_bin_spector
 
             # bin_qr_spector = np.where(bin_qr_spector > np.mean(bin_qr_spector), 255, 0)
-            stop_kadr1.append(round(
+            acc = (round(
                 compare_qr(spector,
                            io.imread(
                                r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_0_49.png"),
                            shift_qr, cnt), 5))
 
-            if cnt % 30 == 29:
-                # v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - 1000), cnt,
-                #                     0.045)
-                # vot_sp.append(round(max(v, 1 - v), 5))
-                print(ampl, alf, cnt, stop_kadr1)
-                # print("after voting", cnt, tt, vot_sp)
+            if cnt % 10 == 9:
+                stop_kadr1.append(acc)
+                v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - st_vot),
+                                    cnt,
+                                    0.045)
+                vot_sp.append(round(max(v, 1 - v), 5))
+                if cnt % 100 == 99:
+                    print(ampl, st_vot, alf, cnt, stop_kadr1)
+                    print("after voting", cnt, tt, vot_sp)
 
             # if cnt % 200 == 199:
             #     # print(max(ser6), min(ser6), np.mean(ser6))
@@ -699,7 +702,6 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
     sum_matrix[sum_matrix <= count * 0.5] = 0
     sum_matrix[sum_matrix > count * 0.5] = 255
-    print(np.count_nonzero(sum_matrix))
     # img1 = Image.fromarray(sum_matrix.astype('uint8'))
     # img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
     orig_qr = io.imread(r"D:\pythonProject\Phase_WM_Clear/data/test_qr_49_49.png")
@@ -713,9 +715,9 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-    total_count = 308
+    total_count = 2308
     # l_fr = []
-    ampl = 4
+    # ampl = 3
     teta = 2.9
     alfa = 0.005
     betta = 0.999
@@ -732,20 +734,20 @@ if __name__ == '__main__':
     #                    input_folder, total_count)
     #
 
-    bitr = "orig"
+    bitr = 5
     for ampl in [4]:
+
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        psnr_full = 0
-        for i in range(50):
-            image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-            image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+        # psnr_full = 0
+        # for i in range(50):
+        #     image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        #     image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+        #
+        #     psnr_full += (cv2.PSNR(image1, image2))
+        #
+        # print("A = ", ampl, "PSNR: ", psnr_full / 50)
 
-            psnr_full += (cv2.PSNR(image1, image2))
-
-        print("A = ", ampl, "PSNR: ", psnr_full / 50)
-
-        if bitr != 50:
-            generate_video(bitr, output_folder)
+        generate_video(bitr, output_folder)
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -755,7 +757,7 @@ if __name__ == '__main__':
 
         # total_count = 2997
 
-        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift)
+        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift, 1000)
 
         # with open(
         #         r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(

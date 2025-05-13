@@ -284,7 +284,7 @@ def compare_qr(myqr, orig_qr, shift, cnt):
     :param path: path to code for comparison
     :return: percentage of similarity
     """
-    size_wm = 65
+    size_wm = 49
     # orig_qr = io.imread(r"data/RS_cod89x89.png")
     orig_cut = np.zeros((size_wm, size_wm))
     orig_qr = np.where(orig_qr > 127, 255, 0)
@@ -305,12 +305,12 @@ def compare_qr(myqr, orig_qr, shift, cnt):
 
     myqr_cut[:, :int(size_wm / 2)] = myqr[1 + shift:size_wm + 1 + shift,
                                      1 + shift:np.ceil(size_wm / 2).astype(int) + shift]
-    if shift== 0:
+    if shift == 0:
         myqr_cut[:, int(size_wm / 2):] = myqr[1 + shift:size_wm + 1 + shift,
                                          -1 * (np.ceil(size_wm / 2).astype(int)) - shift:]
     else:
         myqr_cut[:, int(size_wm / 2):] = myqr[1 + shift:size_wm + 1 + shift,
-                                     -1 * (np.ceil(size_wm / 2).astype(int)) - shift:-shift]
+                                         -1 * (np.ceil(size_wm / 2).astype(int)) - shift:-shift]
     myqr_cut = np.where(myqr_cut > np.mean(myqr_cut), 255, 0)
 
     img = Image.fromarray(myqr_cut.astype('uint8'))
