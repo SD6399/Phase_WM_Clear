@@ -294,8 +294,8 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
             r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
 
         if cnt % 10 == 9:
-            # v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
-            # vot_sp.append(max(v, 1 - v))
+            v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
+            vot_sp.append(max(v, 1 - v))
             # extract_RS(cp,
             #            106, 127, Nbit)
             stop_kadr1.append(max(compare(
@@ -399,12 +399,12 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
     l_fr = []
-    ampl = 3.5
+    ampl = 4
     alfa = 0.0005
     betta = 0.999
     teta = 2.9
-    bitr = "orig"
-    total_count = 307
+    bitr = 5
+    total_count = 2007
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
@@ -418,14 +418,14 @@ if __name__ == '__main__':
     stop_kadr1 = []
 
     # embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
-    psnr_full = 0
-    for i in range(50):
-        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-        image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
-
-        psnr_full += (cv2.PSNR(image1, image2))
-    print("A = ", ampl, "PSNR: ", psnr_full / 50)
-    generate_video("orig", output_folder)
+    # psnr_full = 0
+    # for i in range(50):
+    #     image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+    #     image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+    #
+    #     psnr_full += (cv2.PSNR(image1, image2))
+    # print("A = ", ampl, "PSNR: ", psnr_full / 50)
+    generate_video(bitr, output_folder)
     l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, total_count))
 
     print("Acc-cy of last frame", l_fr)
