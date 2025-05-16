@@ -155,7 +155,7 @@ def read2list(file):
     return lines
 
 
-def extract(alf, beta, tt, size_wm, rand_fr, shift_qr, st_vot):
+def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     """
     Procedure embedding
     :param shift_qr: shift for spectral WM from (0,0)
@@ -169,14 +169,14 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr, st_vot):
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
     # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
-    # psnr_full = 0
-    # for i in range(50):
-    #     image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-    #     image2 = cv2.imread("D:\pythonProject\phase_wm/extract/frame" + str(i) + ".png")
-    #
-    #     psnr_full += (cv2.PSNR(image1, image2))
-    #
-    # print("A = ", ampl, "PSNR: ", psnr_full / 50)
+    psnr_full = 0
+    for i in range(50):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/extract/frame" + str(i) + ".png")
+
+        psnr_full += (cv2.PSNR(image1, image2))
+
+    print("A = ", ampl, "PSNR: ", psnr_full / 50)
     cnt = int(rand_fr)
     g = np.asarray([])
     f = g.copy()
@@ -593,7 +593,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr, st_vot):
                 test_var += l_kadr[row_ind:row_ind + size_wm, col_ind:col_ind + size_wm] / 6
 
         variance.append(np.var(test_var - img_wm))
-
+        bin_qr_spector = np.zeros((49, 49))
         count_quadr = 0
         if cnt % 1 == 0:
             # ser6 = []
@@ -613,20 +613,18 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr, st_vot):
             # bin_qr_spector += tmp_bin_spector
 
             # bin_qr_spector = np.where(bin_qr_spector > np.mean(bin_qr_spector), 255, 0)
-            acc = (round(
+            stop_kadr1.append(round(
                 compare_qr(spector,
                            io.imread(
                                r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_0_49.png"),
                            shift_qr, cnt), 5))
 
             if cnt % 10 == 9:
-                stop_kadr1.append(acc)
-                v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - st_vot),
-                                    cnt,
+                v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - 2000), cnt,
                                     0.045)
                 vot_sp.append(round(max(v, 1 - v), 5))
                 if cnt % 100 == 99:
-                    print(ampl, st_vot, alf, cnt, stop_kadr1)
+                    print(ampl, alf, cnt, stop_kadr1)
                     print("after voting", cnt, tt, vot_sp)
 
             # if cnt % 200 == 199:
@@ -638,7 +636,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr, st_vot):
             # stop_kadr1.append(ser6)
 
         cnt += 1
-    print("Difference 100", diff100)
+    # print("Difference 100", diff100)
 
     return variance, stop_kadr1
 
@@ -702,6 +700,7 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
     sum_matrix[sum_matrix <= count * 0.5] = 0
     sum_matrix[sum_matrix > count * 0.5] = 255
+    print(np.count_nonzero(sum_matrix))
     # img1 = Image.fromarray(sum_matrix.astype('uint8'))
     # img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
     orig_qr = io.imread(r"D:\pythonProject\Phase_WM_Clear/data/test_qr_49_49.png")
@@ -717,9 +716,9 @@ def vot_by_variance(path_imgs, start, end, treshold):
 if __name__ == '__main__':
     total_count = 608
     # l_fr = []
-    # ampl = 3
+    ampl = 4
     teta = 2.9
-    alfa = 0.0005
+    # alfa = 0.005
     betta = 0.999
     # teta = 2.6
     # bitr = 20
@@ -735,19 +734,19 @@ if __name__ == '__main__':
     #
 
     bitr = 5
-    for ampl in [4]:
-
+    for alfa in [0.005, 0.01, 0.05]:
         # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        # psnr_full = 0
-        # for i in range(50):
-        #     image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-        #     image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
-        #
-        #     psnr_full += (cv2.PSNR(image1, image2))
-        #
-        # print("A = ", ampl, "PSNR: ", psnr_full / 50)
+        psnr_full = 0
+        for i in range(50):
+            image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+            image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
 
-        # generate_video(bitr, output_folder)
+            psnr_full += (cv2.PSNR(image1, image2))
+
+        print("A = ", ampl, "PSNR: ", psnr_full / 50)
+
+        # if bitr != 50:
+        #     generate_video(bitr, output_folder)
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
@@ -757,7 +756,7 @@ if __name__ == '__main__':
 
         # total_count = 2997
 
-        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift, 3000)
+        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift)
 
         # with open(
         #         r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
