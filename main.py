@@ -475,7 +475,7 @@ if __name__ == '__main__':
     # create_synthesis_video(mat_exp, ro, 1080, 1920, var_disp, params_ACF, total_count, hc_const, noise_text,
     #                        noise_sensor, rand_jump)
     # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-    # vid_path = generate_video(bitr, output_folder)
+    vid_path = generate_video(bitr, output_folder)
     for betta in np.arange(0.89, 0.991, 0.02):
         # params_ACF_lst = list(params_ACF)
         # params_ACF_lst[2] = beta_acf
@@ -488,7 +488,7 @@ if __name__ == '__main__':
         stop_kadr2_bin = []
         # if mat_exp != 50:
 
-        # l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
-        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
+        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, vid_path))
+        # l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k))
         print("zatukhaniye", betta)
     print("Acc-cy of last frame", l_fr)
