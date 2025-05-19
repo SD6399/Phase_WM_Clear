@@ -49,7 +49,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
               if img.endswith(".png")]
 
     # The list should be sorted by numbers after the name
-    sort_name_img = sort_spis(images, "frame")[:total_count]
+    sort_name_img = sort_spis(images, "sum_mosaic")[:total_count]
     cnt = 0
 
     diff_neighb = []
@@ -168,7 +168,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     """
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
-    # count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
+    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
     psnr_full = 0
     for i in range(50):
         image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
@@ -714,7 +714,7 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-    total_count = 608
+    total_count = 108
     # l_fr = []
     ampl = 4
     teta = 2.9
@@ -723,7 +723,7 @@ if __name__ == '__main__':
     # teta = 2.6
     # bitr = 20
     shift = 0
-    input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
+    input_folder = "D:/pythonProject/phase_wm/synthesis_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_0_wm_49.png"
 
@@ -733,9 +733,9 @@ if __name__ == '__main__':
     #                    input_folder, total_count)
     #
 
-    bitr = 5
-    for alfa in [0.005, 0.01, 0.05]:
-        # embed(input_folder, output_folder, PATH_IMG, ampl, teta)
+    bitr = "orig"
+    for alfa in [0.005]:
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
         psnr_full = 0
         for i in range(50):
             image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
@@ -745,8 +745,8 @@ if __name__ == '__main__':
 
         print("A = ", ampl, "PSNR: ", psnr_full / 50)
 
-        # if bitr != 50:
-        #     generate_video(bitr, output_folder)
+        if bitr != 50:
+            generate_video(bitr, output_folder)
         rand_k = 0
         vot_sp = []
         stop_kadr1 = []
