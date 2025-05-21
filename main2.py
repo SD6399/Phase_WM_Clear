@@ -616,7 +616,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             stop_kadr1.append(round(
                 compare_qr(spector,
                            io.imread(
-                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_0_49.png"),
+                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_40_49.png"),
                            shift_qr, cnt), 5))
 
             if cnt % 10 == 9:
@@ -714,18 +714,19 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-    total_count = 108
+    total_count = 308
     # l_fr = []
-    ampl = 4
+    ampl = 1
     teta = 2.9
-    # alfa = 0.005
+    alfa = 0.005
     betta = 0.999
     # teta = 2.6
     # bitr = 20
-    shift = 0
+    shift = 40
     input_folder = "D:/pythonProject/phase_wm/synthesis_video/"
+    # input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_0_wm_49.png"
+    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_40_wm_49.png"
 
     img_wm = io.imread(PATH_IMG)
 
@@ -734,7 +735,7 @@ if __name__ == '__main__':
     #
 
     bitr = "orig"
-    for alfa in [0.005]:
+    for ampl in [1, 2, 3, 4]:
         embed(input_folder, output_folder, PATH_IMG, ampl, teta)
         psnr_full = 0
         for i in range(50):
