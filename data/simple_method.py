@@ -39,11 +39,11 @@ def disp_pix(path, coord_x, coord_y):
     return list_diff
 
 
-def read_video(path, path_to_save):
+def read_video(path, path_to_save, final_frame):
     vidcap = cv2.VideoCapture(path)
     count_frame = 0
     success = True
-    while success:
+    while success and (count_frame < final_frame):
         success, image = vidcap.read()
         if success:
             cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
@@ -170,9 +170,9 @@ def embed(my_i, count, var):
     img.convert('RGB').save(r"D:/phase_wm_graps/BBC/reformat_qr.png")
 
     while cnt < count:
-        imgg = io.imread(r"D:/pythonProject/phase_wm/synthesis_video/sum_mosaic%d.png" % cnt)
+        imgg = cv2.imread(r"D:\phase_wm_graps\BBC\frames_orig_video/frame%d.png" % cnt)
         a = imgg
-        # a = cv2.cvtColor(imgg, cv2.COLOR_RGB2YCrCb)
+        a = cv2.cvtColor(imgg, cv2.COLOR_RGB2YCrCb)
 
         temp = np.where(st_qr == 255, 1, 0)
         # wm = np.asarray(my_i * ((-1) ** cnt) * temp)
@@ -181,7 +181,7 @@ def embed(my_i, count, var):
         a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm_n) > 255, 255,
                                            np.where(a[20:1060, 440:1480, 0] + wm_n < 0, 0,
                                                     np.float32(a[20:1060, 440:1480, 0] + wm_n)))
-        # tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2BGR)
+        tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2BGR)
 
         row, col, ch = tmp.shape
         mean = 0
@@ -225,33 +225,43 @@ def extract(rand_fr, tresh):
     beta = 0.99
 
     # count = 0
-    read_video(path_of_video, r"D:/phase_wm_graps/BBC/extract")
+    read_video(path_of_video, r"D:/phase_wm_graps/BBC/extract", total_count)
     print("pixels after saving", list00)
     f1 = np.zeros((1080, 1920))
     cnt = int(rand_fr)
-    #
-    # while cnt < total_count:
-    #     arr = io.imread(r"D:/phase_wm_graps/BBC/extract/frame" + str(cnt) + ".png")
-    #     a = arr
-    #     # g1=d1 # !!!!!!!!!!!!!
-    #     d1 = f1
-    #     if cnt == rand_fr:
-    #         f1 = a.copy()
-    #         d1 = np.zeros((1080, 1920))
-    #     # elif cnt == change_sc[scene-1] + 1:
-    #     else:
-    #         f1 = np.float32(d1) * alf + np.float32(a) * (1 - alf)
-    #     # else:
-    #     #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
-    #
-    #     f1[f1 > 255] = 255
-    #     f1[f1 < 0] = 0
-    #     img = Image.fromarray(f1.astype('uint8'))
-    #     if cnt % 300 == 0:
-    #         print("first smooth", cnt)
-    #     img.save(r'D:/phase_wm_graps/BBC/extract/first_smooth/result' + str(cnt) + '.png')
-    #
-    #     cnt += 1
+
+    while cnt < total_count:
+        arr = io.imread(r"D:/phase_wm_graps/BBC/extract/frame" + str(cnt) + ".png")
+        # a = arr
+        #
+        # d1 = f1
+        # if cnt == rand_fr:
+        #     f1 = a.copy()
+        #     d1 = np.zeros((1080, 1920))
+        #
+        # else:
+        #     f1 = np.float32(d1) * (1-alf) + np.float32(a) * (alf)
+
+        if cnt == rand_fr:
+            f1 = arr
+            diff = np.clip(arr, -2, 2)
+            x1 = np.zeros((1080, 1920))
+
+        else:
+            # diff = np.clip(np.float32(arr) - np.float32(x1), -2, 2)
+            diff = np.float32(arr) - np.float32(x1)
+            f1 = np.float32(diff) - np.float32(arr) * (alf)
+
+        x1 = np.copy(arr)
+
+        # f1[f1 > 255] = 255
+        # f1[f1 < 0] = 0
+        img = Image.fromarray(f1.astype('uint8'))
+        if cnt % 80 == 0:
+            print("first smooth", cnt)
+        img.save(r'D:/phase_wm_graps/BBC/extract/first_smooth/result' + str(cnt) + '.png')
+
+        cnt += 1
 
     g = np.asarray([])
     f = g.copy()
@@ -266,45 +276,26 @@ def extract(rand_fr, tresh):
     # shuf_order = read2list(r'D:\pythonProject\\phase_wm\shuf.txt')
     # shuf_order = [eval(i) for i in shuf_order]
     # вычитание усреднённого
-    while cnt < 500:
-        orig_arr = np.float32(io.imread(r"D:/phase_wm_graps/BBC\extract/frame" + str(cnt) + ".png"))
-        if cnt != 0:
-            orig_arr_1 = np.float32(io.imread(r"D:/phase_wm_graps/BBC/extract/frame" + str(cnt - 1) + ".png"))
-        else:
-            orig_arr_1 = np.zeros(orig_arr.shape)
+    while cnt < total_count:
+        orig_arr = np.float32(cv2.imread(r"D:/phase_wm_graps/BBC\extract/frame" + str(cnt) + ".png"))
+        if orig_arr.shape[0] < 1040 or orig_arr.shape[1] < 1480:
+            print("cur cnt", cnt)
 
-        # arr = np.float32(io.imread(r"D:/phase_wm_graps/BBC\extract/first_smooth/result" + str(cnt) + ".png"))
-        # arr = np.float32(io.imread(r"D:/phase_wm_graps/BBC\extract/frame" + str(cnt) + ".png"))
-        # a = np.where(orig_arr - arr > 0, orig_arr - arr, arr - orig_arr)
-        # final_arr = orig_arr*0.5+orig_arr_1*0.5
-        a = cv2.cvtColor(orig_arr[20:1060, 440:1480], cv2.COLOR_RGB2YCrCb)
-        # a = orig_arr
-        if cnt == 0:
-            # a_n1 = cv2.cvtColor(orig_arr_1[20:1060, 440:1480,:],cv2.COLOR_RGB2YCrCb)
-            # a_main_1 = a_n1[:, :, 0]
-            a_main_1 = np.zeros((1040, 1040))
-        else:
-            a_n1 = cv2.cvtColor(orig_arr_1, cv2.COLOR_RGB2YCrCb)
-            a_main_1 = a_n1[20:1060, 440:1480, 0]
-            # a_main_1 = orig_arr_1[20:1060, 440:1480]
-        # res_1d = np.ravel(a[0:1057, :, 0])[:256 - 1920]
-        # start_qr = np.resize(res_1d, (1424, 1424))
-        #
-        # unshuf_order = np.zeros_like(shuf_order)
-        # unshuf_order[shuf_order] = np.arange(start_qr.size)
-        # unshuffled_data = np.ravel(start_qr)[unshuf_order]
-        # matr_unshuf = np.resize(unshuffled_data, (1424, 1424))
+        f1 = cv2.cvtColor(orig_arr[20:1060, 440:1480], cv2.COLOR_BGR2YCrCb)
+
+        # f1 = f1[:, :, 0]
+        arr = np.float32(io.imread(r"D:/phase_wm_graps/BBC\extract/first_smooth/result" + str(cnt) + ".png"))
+        a = cv2.cvtColor(arr[20:1060, 440:1480], cv2.COLOR_BGR2YCrCb)
+
+        a1 = a - f1
+        a1 = a1[:, :, 0]
 
         # извлечение ЦВЗ
 
-        a_main = a[:, :, 0]
-        # a_main = a[20:1060, 440:1480]
-        # g = np.copy(d)
-        tmp = a_main - a_main_1
         # tmp = a_main*0.5 + a_main_1*0.5
         # tmp = a_main
         if cnt == rand_fr:
-            f = np.copy(tmp)
+            f = np.copy(a1)
             d = np.zeros((1040, 1040))
             # d = np.copy(a_main-a_main_1)
         # else:
@@ -312,24 +303,10 @@ def extract(rand_fr, tresh):
         #         f = - 2 * beta * np.float32(d) + np.float32(a)
 
         else:
-            f = -beta * np.float32(d) + np.float32(tmp)
+            f = -beta * np.float32(d) + np.float32(a1)
             sp0.append(f[120, 0])
             sp1.append(f[0, 0])
-            # print(cnt, np.min(f),np.max(f), f[0,0])
             d = np.copy(f)
-
-        # yc = np.float32(f) + beta * np.float32(d)
-        # # ys = 0
-        # c = math.pow(-1, cnt) * np.float32(yc)
-        # s = 0
-        #
-        # fi = np.where(c < 0, np.arctan((s / c)) + np.pi,
-        #               np.where(s >= 0, np.arctan((s / c)), np.arctan((s / c)) + 2 * np.pi))
-        # fi = np.nan_to_num(fi)
-        # fi = np.where(fi < -np.pi / 4, fi + 2 * np.pi, fi)
-        # fi = np.where(fi > 9 * np.pi / 4, fi - 2 * np.pi, fi)
-
-        # wm = np.where(f > 255, 255, np.where(f < 0, 0, wm))
 
         a1 = f
         small_frame = (big2small(a1))
@@ -520,7 +497,7 @@ def extract(rand_fr, tresh):
         # print("wm extract", cnt)
         if cnt % 5 == 4:
             v = vot_by_variance(r"D:/phase_wm_graps/BBC\extract/wm", 0, cnt, tresh)
-            vot_sp.append(max(v, 1 - v))
+            vot_sp.append(np.round(max(v, 1 - v), 4))
             # if extract_RS(io.imread(
             #         r"D:/phase_wm_graps/BBC\extract/after_normal_phas_bin/result" + str(cnt) + ".png"),
             #         rsc, Nbit) == b'':
@@ -529,9 +506,9 @@ def extract(rand_fr, tresh):
             # else:
             #     stop_kadr1_bin.append(0)
             #
-            stop_kadr1.append(max(compare(
+            stop_kadr1.append(np.round(max(compare(
                 r"D:/phase_wm_graps/BBC\extract/wm/result" + str(cnt) + ".png"), 1 - compare(
-                r"D:/phase_wm_graps/BBC\extract/wm/result" + str(cnt) + ".png")))
+                r"D:/phase_wm_graps/BBC\extract/wm/result" + str(cnt) + ".png")), 4))
             if cnt % 50 == 49:
                 print(cnt, stop_kadr1)
                 print(vot_sp)
@@ -606,17 +583,19 @@ def generate_video(bitr, image_folder):
     :param bitr: bitrate of output video
     """
 
-    if bitr != "orig":
-        video_name = 'need_video.mp4'
-    else:
-        video_name = "RB_codec.mp4"
     os.chdir(image_folder)
 
     images = [img for img in os.listdir(image_folder)
               if img.endswith(".png")]
-    sort_name_img = sort_spis(images, "frame")[:total_count]
+    sort_name_img = sort_spis(images, "result")[:total_count]
     frame = cv2.imread(os.path.join(image_folder, images[0]))
     height, width, layers = frame.shape
+
+    if bitr != "orig":
+        video_name = 'need_video.mp4'
+    else:
+        video_name = "RB_codec.mp4"
+
     # fourcc = cv2.VideoWriter_fourcc(*'H264')
 
     video = cv2.VideoWriter(video_name, 0, 29.97, (width, height))
@@ -635,7 +614,7 @@ def generate_video(bitr, image_folder):
     if bitr != "orig":
         print("Codec worked")
         os.system(f"ffmpeg -y -i D:/phase_wm_graps/BBC/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
-                  f" libx264  D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.mp4")
+                  f" mpeg2video  D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.mp4")
 
 
 def compare(path):  # сравнивание извлечённого QR с исходным
@@ -726,10 +705,11 @@ if __name__ == '__main__':
 
     squ_size = 4
     for_fi = 6
-    br = 35
+
     # графики-сравнения по различныи параметрам
 
-    input_folder = "D:/pythonProject/phase_wm/synthesis_video/"
+    PATH_VIDEO = "D:/pythonProject/phase_wm/Road.mp4"
+    input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/phase_wm_graps/BBC/frames_after_emb/"
     # with open('change_sc.csv', 'r') as f:
     #     change_sc = list(csv.reader(f))[0]
@@ -737,15 +717,13 @@ if __name__ == '__main__':
     # change_sc = [eval(i) for i in change_sc]
 
     rand_k = 0
-    total_count = 307
+    total_count = 507
 
     hm_list = []
 
     # smoothing(r"D:/phase_wm_graps/BBC\extract/after_normal_phas", "result", "D:/phase_wm_graps/BBC\extract"
     #                                                                          "/wm_after_2_smooth", 0.1)
     alfa = 0.01
-    # teta = 3
-
     sp = []
 
     # for tr in np.arange(0,206,20):
@@ -756,47 +734,24 @@ if __name__ == '__main__':
     #     print("frame", st)
     #     print("Start ", vot_sp)
 
-    # bitr = 5.4
-    ampl = 3
-    teta = 3
-    # count_of_frames = read_video(PATH_VIDEO[0], "D:/phase_wm_graps/BBC/frames_orig_video")
-    for bitrate21 in [5]:
-        embed(ampl, total_count, 0)
-        generate_video(bitrate21,output_folder)
+    bitr = "orig"
+    ampl = 1
 
+    # count_of_frames = read_video(PATH_VIDEO, "D:/phase_wm_graps/BBC/frames_orig_video", total_count)
+    # embed(ampl, total_count, 0)
+    for bitr in [25, 10, 5]:
+        generate_video(bitr, output_folder)
         stop_kadr1 = []
         stop_kadr1_bin = []
         stop_kadr2_bin = []
         print('GEN')
-        path_extract_code = extract(0, 0.045)
+        path_extract_code = extract(rand_k, 0.045)
         print("all")
-        print("brate = ", bitrate21, alfa, "current percent", stop_kadr1)
+        print("brate = ", bitr, "random frame = ", rand_k, alfa, "current percent", stop_kadr1)
     hand_made = [0, 118, 404, 414, 524, 1002, 1391, 1492, 1972, 2393, 2466, total_count]
     exit_list = []
     res = np.zeros((65, 65))
     res_bin = np.zeros((65, 65))
-
-    # for ii in range(1, len(hand_made)):
-    #     tnp = io.imread(r"D:/phase_wm_graps/BBC\extract/wm_after_2_smooth/result" + str(
-    #         hand_made[ii] - 1) + ".png")
-    #     res[tnp >= np.mean(tnp)] += (hand_made[ii] - hand_made[ii - 1])
-    #     res[tnp < np.mean(tnp)] -= (hand_made[ii] - hand_made[ii - 1])
-    #     # res2=img2bin(tnp)
-    #     img = Image.fromarray(res.astype('uint8'))
-    #     img.save(r"D:/phase_wm_graps/BBC\extract/after_normal_phas/sumframe" + str(ii) + ".png")
-    #
-    #     # print(compare(r"D:/phase_wm_graps/BBC\extract/after_normal_phas/sumframe" +str(i)+ ".png"),
-    #     change_sc[i])
-    #     res_bin[res >= 0] = 255
-    #     res_bin[res < 0] = 0
-    #
-    #     img = Image.fromarray(img2bin(res_bin).astype('uint8'))
-    #     img.save(r"D:/phase_wm_graps/BBC\extract/after_normal_phas/sumframe_res" + ".png")
-    #     exit_list.append(compare(r"D:/phase_wm_graps/BBC\extract/after_normal_phas/sumframe_res" + ".png"))
-    #     print(exit_list)
-    #     hm_list.append(compare(r"D:/phase_wm_graps/BBC\extract/after_normal_phas/sumframe_res" + ".png"))
-    #     # print(compare(r"D:/phase_wm_graps/BBC\extract/after_normal_phas_bin/result" + str(i-1) + ".png"))
-
 
     print(alfa, "current percent", stop_kadr1)
     # print("bitrate", bitr, ampl, teta, alfa, "current percent", stop_kadr1_bin)
