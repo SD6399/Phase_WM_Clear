@@ -614,7 +614,7 @@ def generate_video(bitr, image_folder):
     if bitr != "orig":
         print("Codec worked")
         os.system(f"ffmpeg -y -i D:/phase_wm_graps/BBC/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
-                  f" mpeg2video  D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.mp4")
+                  f" libx265  D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.mp4")
 
 
 def compare(path):  # сравнивание извлечённого QR с исходным
@@ -708,7 +708,7 @@ if __name__ == '__main__':
 
     # графики-сравнения по различныи параметрам
 
-    PATH_VIDEO = "D:/pythonProject/phase_wm/Road.mp4"
+    PATH_VIDEO = "D:/pythonProject/phase_wm/cut_RealBarca120.mp4"
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/phase_wm_graps/BBC/frames_after_emb/"
     # with open('change_sc.csv', 'r') as f:
@@ -717,7 +717,7 @@ if __name__ == '__main__':
     # change_sc = [eval(i) for i in change_sc]
 
     rand_k = 0
-    total_count = 507
+    total_count = 1407
 
     hm_list = []
 
@@ -737,8 +737,8 @@ if __name__ == '__main__':
     bitr = "orig"
     ampl = 1
 
-    # count_of_frames = read_video(PATH_VIDEO, "D:/phase_wm_graps/BBC/frames_orig_video", total_count)
-    # embed(ampl, total_count, 0)
+    count_of_frames = read_video(PATH_VIDEO, "D:/phase_wm_graps/BBC/frames_orig_video", total_count)
+    embed(ampl, total_count, 0)
     for bitr in [25, 10, 5]:
         generate_video(bitr, output_folder)
         stop_kadr1 = []
