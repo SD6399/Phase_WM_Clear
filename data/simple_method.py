@@ -708,7 +708,7 @@ if __name__ == '__main__':
 
     # графики-сравнения по различныи параметрам
 
-    PATH_VIDEO = "D:/pythonProject/phase_wm/cut_RealBarca120.mp4"
+    PATH_VIDEO = "D:/pythonProject/phase_wm/Road.mp4"
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/phase_wm_graps/BBC/frames_after_emb/"
     # with open('change_sc.csv', 'r') as f:
@@ -717,7 +717,7 @@ if __name__ == '__main__':
     # change_sc = [eval(i) for i in change_sc]
 
     rand_k = 0
-    total_count = 1407
+    total_count = 407
 
     hm_list = []
 
@@ -739,6 +739,8 @@ if __name__ == '__main__':
 
     count_of_frames = read_video(PATH_VIDEO, "D:/phase_wm_graps/BBC/frames_orig_video", total_count)
     embed(ampl, total_count, 0)
+
+
     for bitr in [25, 10, 5]:
         generate_video(bitr, output_folder)
         stop_kadr1 = []
