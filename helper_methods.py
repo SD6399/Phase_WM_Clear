@@ -39,7 +39,7 @@ def read_video(path, path_to_save, final_frame):
         if success:
             cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
             pix100.append(image[100, 100, 0])
-        if count_frame % 25 == 24:
+        if count_frame % 250 == 249:
             print("записан кадр", count_frame, )
 
         if cv2.waitKey(10) == 27:

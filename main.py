@@ -11,6 +11,7 @@ from PIL import Image, ImageFile
 # from qrcode_1 import read_qr, correct_qr
 from helper_methods import small2big, big2small, sort_spis, read_video
 from helper_methods import csv2list, bit_voting, read2list
+
 # from reedsolomon import extract_RS, Nbit
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -30,7 +31,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count)
 
     fi = math.pi / 2 / 255
     st_qr = cv2.imread(binary_image)
-    st_qr = cv2.cvtColor(st_qr, cv2.COLOR_RGB2YCrCb)
+    st_qr = cv2.cvtColor(st_qr, cv2.COLOR_BGR2YCrCb)
 
     lst_100 = []
 
@@ -57,10 +58,17 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count)
     cnt = 0
 
     while cnt < len(sort_name_img):
-        # Reads in BGR format
-        imgg = cv2.imread(folder_orig_image + sort_name_img[cnt])
+
+        try:
+            imgg = cv2.imread(folder_orig_image + sort_name_img[cnt])
+            if imgg is None:
+                raise ValueError(f"Изображение не загружено: {folder_orig_image + sort_name_img[cnt]}")
+            a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
+        except Exception as e:
+            print(f"[Ошибка] {e} в файле {folder_orig_image + sort_name_img[cnt]}")
+
         # translation to the YCrCb space
-        a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
+        # a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
         # a = a.astype(float)
 
         temp = fi * pict
@@ -79,13 +87,14 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count)
         # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
         #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
         #                                             np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0])))
-        tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2BGR)
+        tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2RGB)
 
         # Converting the YCrCb matrix to BGR
         img_path = os.path.join(folder_to_save)
-        cv2.imwrite(img_path + "frame" + str(cnt) + ".png", tmp)
+        img = Image.fromarray(tmp.astype('uint8'))
 
-        if cnt % 300 == 0:
+        img.save(img_path + "frame" + str(cnt) + ".png")
+        if cnt % 100 == 0:
             print("wm embed", cnt)
 
         cnt += 1
@@ -124,7 +133,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     gc.collect()
 
     while cnt < count:
-        if cnt % 25 == 24:
+        if cnt % 250 == 249:
             print('After create dataset The CPU usage is: ', psutil.virtual_memory().percent)
 
         arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
@@ -163,13 +172,18 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     while cnt < count:
 
         arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
-        a = cv2.cvtColor(arr, cv2.COLOR_BGR2YCrCb)
+        a = cv2.cvtColor(arr[:1057, :], cv2.COLOR_BGR2YCrCb)
         # a = a[:, :, 0]
 
-        f1 = np.float32(
-            cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
+        try:
+            f1 = cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png")
+            if f1 is None:
+                raise ValueError(
+                    f"Изображение не загружено: D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
+            f1 = cv2.cvtColor(f1[:1057, :], cv2.COLOR_BGR2YCrCb)
+        except Exception as e:
+            print(f"[Ошибка] {e} в файле D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png")
 
-        f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
         # a1 = np.where(a < f1, f1 - a, a - f1)
         # a1 = np.where(a < f1, f1 - a, 0)
         a1 = a - f1
@@ -219,8 +233,8 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
         wm[wm > 255] = 255
         wm[wm < 0] = 0
 
-        img = Image.fromarray(wm.astype('uint8'))
-        img.save(r"D:/pythonProject/phase_wm\extract/before_normalize/result" + str(cnt) + ".png")
+        # img = Image.fromarray(wm.astype('uint8'))
+        # img.save(r"D:/pythonProject/phase_wm\extract/before_normalize/result" + str(cnt) + ".png")
 
         a1 = wm
 
@@ -293,18 +307,18 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
         imgc.save(
             r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
 
-        if cnt % 10 == 9:
+        if cnt % 5 == 4:
             v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
-            vot_sp.append(max(v, 1 - v))
+            vot_sp.append(np.round(max(v, 1 - v), 4))
             # extract_RS(cp,
             #            106, 127, Nbit)
-            stop_kadr1.append(max(compare(
+            stop_kadr1.append(np.round(max(compare(
                 r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png",
                 io.imread(PATH_IMG)),
                 1 - compare(
                     r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(
-                        cnt) + ".png", io.imread(PATH_IMG))))
-            if cnt % 30 == 29:
+                        cnt) + ".png", io.imread(PATH_IMG))), 4))
+            if cnt % 100 == 99:
                 print(tt, cnt, stop_kadr1)
                 print("after voting", tt, vot_sp)
 
@@ -350,7 +364,6 @@ def generate_video(bitr, image_folder):
         os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
                   f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
         return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
-
 
 
 def compare(path, orig_qr):
@@ -399,33 +412,35 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
     l_fr = []
-    ampl = 4
+    ampl = 1
     alfa = 0.0005
     betta = 0.999
     teta = 2.9
-    bitr = 5
-    total_count = 2007
+    # bitr = "orig"
+    total_count = 2107
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
     PATH_IMG = r"D:\pythonProject\Phase_WM_Clear\data/test_qr_89_89.png"
     img_wm = io.imread(PATH_IMG)
-    # read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
-    #            input_folder, total_count)
+    read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
+               input_folder, total_count)
 
     rand_k = 0
-    vot_sp = []
-    stop_kadr1 = []
 
-    # embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
-    # psnr_full = 0
-    # for i in range(50):
-    #     image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-    #     image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
-    #
-    #     psnr_full += (cv2.PSNR(image1, image2))
-    # print("A = ", ampl, "PSNR: ", psnr_full / 50)
-    generate_video(bitr, output_folder)
-    l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, total_count))
+    embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
+    psnr_full = 0
+    for i in range(100):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
 
-    print("Acc-cy of last frame", l_fr)
+        psnr_full += (cv2.PSNR(image1, image2))
+    print("A = ", ampl, "PSNR: ", psnr_full / 100)
+
+    for btr in [10, 5]:
+        vot_sp = []
+        stop_kadr1 = []
+        generate_video(btr, output_folder)
+        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, total_count))
+
+        print("Acc-cy of last frame", l_fr)
