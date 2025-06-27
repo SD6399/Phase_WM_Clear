@@ -14,6 +14,38 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 size_quadr = 16
 
 
+def psnr_hvs_m_simple(img1, img2, weights=(0.299, 0.587, 0.114)):
+    """
+    Упрощённая версия PSNR-HVS-M.
+
+    :param img1: numpy array, эталонное изображение (RGB или grayscale)
+    :param img2: numpy array, искажённое изображение
+    :param weights: веса для RGB каналов (по умолчанию ITU-R BT.601)
+    :return: PSNR_HVS_M значение в дБ
+    """
+    # Проверка размеров
+    if img1.shape != img2.shape:
+        raise ValueError("Изображения должны быть одинакового размера")
+
+    # Если изображения цветные — переводим в оттенки серого с учётом весов
+    if len(img1.shape) == 3 and img1.shape[2] == 3:
+        diff = np.abs(img1.astype('float32') - img2.astype('float32'))
+        weighted_diff = np.dot(diff, weights)
+    else:
+        diff = np.abs(img1.astype('float32') - img2.astype('float32'))
+        weighted_diff = diff
+
+    # Среднеквадратичная ошибка с учетом веса
+    mse = np.mean(weighted_diff ** 2)
+
+    if mse == 0:
+        return float('inf')
+
+    max_pixel = 255.0
+    psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
+    return psnr
+
+
 def read_video(path, path_to_save, final_frame):
     vidcap = cv2.VideoCapture(path)
     count_frame = 0
@@ -68,7 +100,15 @@ def embed(my_i, count, var):
                                    np.where(a[0:1057, :, 0] + wm_n < 0, 0, np.float32(a[0:1057, :, 0] + wm_n)))
 
         tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2RGB)
-        img = Image.fromarray(tmp.astype('uint8'))
+
+        row, col, ch = tmp.shape
+        mean = 0
+        sigma = var ** 0.5
+        gauss = np.random.normal(mean, sigma, (row, col, ch))
+        gauss = gauss.reshape(tmp.shape)
+        noisy = np.clip(tmp + gauss, 0, 255)
+
+        img = Image.fromarray(noisy.astype('uint8'))
 
         img.save(r"D:/phase_wm_graps/BBC\frames_after_emb\result" + str(cnt) + ".png")
         if cnt % 100 == 0:
@@ -89,19 +129,16 @@ def read2list(file):
     return lines
 
 
-def extract(rand_fr, tresh):
+def extract(alf, bet, rand_fr, tresh):
     size_wm = 1424
 
     path_of_video = r'D:/phase_wm_graps/BBC/frames_after_emb\RB_codec.mp4'
     vidcap = cv2.VideoCapture(path_of_video)
     vidcap.open(path_of_video)
-    alf = 0.01
-    list00 = []
-    beta = 0.99
 
     # count = 0
     read_video(path_of_video, r"D:/phase_wm_graps/BBC/extract", total_count)
-    print("pixels after saving", list00)
+
     f1 = np.zeros((1080, 1920))
     cnt = int(rand_fr)
 
@@ -118,9 +155,9 @@ def extract(rand_fr, tresh):
             x1 = np.zeros((1080, 1920))
 
         else:
-            # diff = np.clip(np.float32(arr) - np.float32(x1), -2, 2)
-            diff = np.float32(arr) - np.float32(x1)
-            f1 = np.float32(diff) - np.float32(arr) * (alf)
+            diff = np.clip(np.float32(arr) - np.float32(x1), -2, 2)
+            # diff = np.float32(arr) - np.float32(x1)
+            f1 = np.float32(diff) - np.float32(arr) * alf
 
         x1 = np.copy(arr)
 
@@ -152,7 +189,7 @@ def extract(rand_fr, tresh):
         f1 = cv2.cvtColor(orig_arr[:1057, :], cv2.COLOR_BGR2YCrCb)
 
         # f1 = f1[:, :, 0]
-        arr = np.float32(io.imread(r"D:/phase_wm_graps/BBC\extract/first_smooth/result" + str(cnt) + ".png"))
+        arr = np.float32(cv2.imread(r"D:/phase_wm_graps/BBC\extract/first_smooth/result" + str(cnt) + ".png"))
         a = cv2.cvtColor(arr[:1057, :], cv2.COLOR_BGR2YCrCb)
 
         a1 = a - f1
@@ -176,7 +213,7 @@ def extract(rand_fr, tresh):
             d = np.zeros((1424, 1424))
 
         else:
-            f = -beta * np.float32(d) + np.float32(a1)
+            f = -bet * np.float32(d) + np.float32(a1)
             sp0.append(f[120, 0])
             sp1.append(f[0, 0])
             d = np.copy(f)
@@ -195,6 +232,11 @@ def extract(rand_fr, tresh):
         img = Image.fromarray(wm.astype('uint8'))
         img.save(r'D:/phase_wm_graps/BBC\extract/wm/result' + str(cnt) + '.png')
 
+        if len(vot_sp) >= 5 and all(x > 0.99 for x in vot_sp[-5:]):
+            print(stop_kadr1)
+            print("voting list", vot_sp)
+            return r"D:/phase_wm_graps/BBC\extract/wm//result" + str(cnt - 1) + ".png"
+
         if cnt % 5 == 4:
             v = vot_by_variance(r"D:/phase_wm_graps/BBC\extract/wm", 0, cnt, tresh)
             vot_sp.append(np.round(max(v, 1 - v), 4))
@@ -209,7 +251,7 @@ def extract(rand_fr, tresh):
             stop_kadr1.append(np.round(max(compare(
                 r"D:/phase_wm_graps/BBC\extract/wm/result" + str(cnt) + ".png"), 1 - compare(
                 r"D:/phase_wm_graps/BBC\extract/wm/result" + str(cnt) + ".png")), 4))
-            if cnt % 50 == 49:
+            if cnt % 100 == 99:
                 print(cnt, stop_kadr1)
                 print(vot_sp)
 
@@ -235,13 +277,13 @@ def generate_video(bitr, image_folder):
     height, width, layers = frame.shape
 
     if bitr != "orig":
-        video_name = 'need_video.mp4'
+        video_name = 'need_video.avi'
     else:
         video_name = "RB_codec.mp4"
 
-    # fourcc = cv2.VideoWriter_fourcc(*'H264')
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
-    video = cv2.VideoWriter(video_name, 0, 29.97, (width, height))
+    video = cv2.VideoWriter(video_name, fourcc, 29.97, (width, height))
 
     cnt = 0
     for image in sort_name_img:
@@ -250,11 +292,12 @@ def generate_video(bitr, image_folder):
             print(cnt)
         cnt += 1
     cv2.destroyAllWindows()
+
     video.release()
 
     if bitr != "orig":
         print("Codec worked")
-        os.system(f"ffmpeg -y -i D:/phase_wm_graps/BBC/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
+        os.system(f"ffmpeg -y -i D:/phase_wm_graps/BBC/frames_after_emb/need_video.avi -b:v {bitr}M -vcodec"
                   f" libx264 D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.mp4")
 
 
@@ -341,27 +384,41 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
 
-    PATH_VIDEO = "D:/pythonProject/phase_wm/cut_RealBarca120.mp4"
+    # PATH_VIDEO = "D:/pythonProject/phase_wm/cut_RealBarca120.mp4"
     output_folder = "D:/phase_wm_graps/BBC/frames_after_emb/"
-
+    input_folder = r"D:/phase_wm_graps/BBC/frames_orig_video/"
     rand_k = 0
-    total_count = 107
+    total_count = 157
 
     hm_list = []
-    alfa = 0.01
+    alfa = 0.001
+    beta = 0.999
     sp = []
 
-    ampl = 1
-    embed(ampl, total_count, 0)
-    for bitr in [7]:
-        generate_video(bitr, output_folder)
-        stop_kadr1 = []
-        stop_kadr1_bin = []
-        stop_kadr2_bin = []
-        print('GEN')
-        path_extract_code = extract(rand_k, 0.045)
-        print("all")
-        print("brate = ", bitr, "random frame = ", rand_k, alfa, "current percent", stop_kadr1)
-    hand_made = [0, 118, 404, 414, 524, 1002, 1391, 1492, 1972, 2393, 2466, total_count]
+    for vid_name in ["cut_RealBarca120"]:
 
-    print(alfa, "current percent", stop_kadr1)
+        read_video(r'D:/pythonProject/phase_wm/' + vid_name + '.mp4',
+                   input_folder, total_count)
+
+        ampl = 2
+
+        for var_noise in [1]:
+            embed(ampl, total_count, var_noise)
+            psnr_full = 0
+
+            for i in range(100):
+                image1 = cv2.imread("D:/phase_wm_graps/BBC/frames_after_emb/result" + str(i) + ".png")
+                image2 = cv2.imread("D:/phase_wm_graps/BBC/frames_orig_video/frame" + str(i) + ".png")
+
+                psnr_full += (cv2.PSNR(image1, image2))
+            print("Video ", vid_name, "A = ", ampl, "PSNR: ", psnr_full / 100)
+            generate_video("orig", output_folder)
+            stop_kadr1 = []
+            stop_kadr1_bin = []
+            stop_kadr2_bin = []
+            print('GEN')
+            path_extract_code = extract(alfa, beta, rand_k, 0.045)
+            print("all")
+            print("var_noise = ", var_noise,  alfa, "current percent", stop_kadr1)
+
+        print(alfa, "current percent", stop_kadr1)
