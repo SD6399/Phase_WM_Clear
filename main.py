@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import math
 from skimage import io
 import psutil
@@ -12,13 +13,101 @@ from PIL import Image, ImageFile
 from helper_methods import small2big, big2small, sort_spis, read_video
 from helper_methods import csv2list, bit_voting, read2list
 
+
+def psnr_hvs_m_simple(img1, img2, weights=(0.299, 0.587, 0.114)):
+    """
+    Упрощённая версия PSNR-HVS-M.
+
+    :param img1: numpy array, эталонное изображение (RGB или grayscale)
+    :param img2: numpy array, искажённое изображение
+    :param weights: веса для RGB каналов (по умолчанию ITU-R BT.601)
+    :return: PSNR_HVS_M значение в дБ
+    """
+    # Проверка размеров
+    if img1.shape != img2.shape:
+        raise ValueError("Изображения должны быть одинакового размера")
+
+    # Если изображения цветные — переводим в оттенки серого с учётом весов
+    if len(img1.shape) == 3 and img1.shape[2] == 3:
+        diff = np.abs(img1.astype('float32') - img2.astype('float32'))
+        weighted_diff = np.dot(diff, weights)
+    else:
+        diff = np.abs(img1.astype('float32') - img2.astype('float32'))
+        weighted_diff = diff
+
+    # Среднеквадратичная ошибка с учетом веса
+    mse = np.mean(weighted_diff ** 2)
+
+    if mse == 0:
+        return float('inf')
+
+    max_pixel = 255.0
+    psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
+    return psnr
+
+
 # from reedsolomon import extract_RS, Nbit
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
-def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count):
+def is_image_valid(filepath):
+    """Проверяет, можно ли корректно прочитать изображение."""
+    try:
+        image = cv2.imread(filepath)
+        if image is None:
+            return False
+        return True
+    except Exception as e:
+        print(f"Ошибка при чтении {filepath}: {e}")
+        return False
+
+
+def reextract_corrupted_frames(video_path, image_dir, max_frame=None):
+    """Перезаписывает повреждённые кадры из видео."""
+    # Получаем список всех frame файлов
+    frame_files = sorted(
+        [f for f in os.listdir(image_dir) if f.startswith("frame") and f.endswith(".png")],
+        key=lambda x: int(x[5:-4])  # Сортировка по номеру кадра
+    )
+
+    if not frame_files:
+        print("Нет кадров для проверки.")
+        return
+
+    # Открываем видео
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError("Не удалось открыть видеофайл.")
+
+    # Подготавливаем путь для сохранения
+    corrupted_count = 0
+
+    for filename in frame_files:
+        frame_idx = int(filename[5:-4])
+        if max_frame is not None and frame_idx >= max_frame:
+            break
+
+        filepath = os.path.join(image_dir, filename)
+
+        # Проверяем целостность изображения
+        if not is_image_valid(filepath):
+            print(f"Кадр {filename} повреждён. Перезаписываю...")
+
+            # Перематываем видео до нужного кадра
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            success, image = cap.read()
+
+            if success:
+                cv2.imwrite(filepath, image)
+                print(f"Кадр {filename} успешно перезаписан.")
+                corrupted_count += 1
+            else:
+                print(f"Не удалось извлечь кадр {frame_idx} из видео.")
+
+
+def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count, var):
     """
     Procedure embedding
     :param count: count of frames for embedding
@@ -89,9 +178,15 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count)
         #                                             np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0])))
         tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2RGB)
 
+        row, col, ch = tmp.shape
+        mean = 0
+        sigma = var ** 0.5
+        gauss = np.random.normal(mean, sigma, (row, col, ch))
+        gauss = gauss.reshape(tmp.shape)
+        noisy = np.clip(tmp + gauss, 0, 255)
         # Converting the YCrCb matrix to BGR
         img_path = os.path.join(folder_to_save)
-        img = Image.fromarray(tmp.astype('uint8'))
+        img = Image.fromarray(noisy.astype('uint8'))
 
         img.save(img_path + "frame" + str(cnt) + ".png")
         if cnt % 100 == 0:
@@ -102,6 +197,9 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count)
         with open('diff_wm.txt', 'w') as f:
             for line in lst_100:
                 f.write(f"{line}\n")
+
+
+import cv2
 
 
 def extract(alf, beta, tt, size_wm, rand_fr, count):
@@ -118,6 +216,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
 
     read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', count)
+    # reextract_corrupted_frames(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
     psnr_full = 0
     for i in range(50):
         image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
@@ -129,6 +228,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     g = np.asarray([])
     f = g.copy()
     f1 = f.copy()
+
     pix100_smooth = []
     gc.collect()
 
@@ -145,15 +245,35 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
         # elif cnt == change_sc[scene-1] + 1:
         else:
             f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
-        # else:
-        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+            # else:
+            #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
 
-        np.clip(f1, 0, 255, out=f1)
-        img = Image.fromarray(f1.astype('uint8'))
-        pix100_smooth.append(f1[100, 100, 0])
+            # Гарантируем корректные значения
+            f1 = np.clip(f1, 0, 255)
+
+            # Проверяем данные перед сохранением
+            if np.any(np.isnan(f1)) or np.any(f1 < 0) or np.any(f1 > 255):
+                print(f"Invalid data in frame {cnt} - min: {np.min(f1)}, max: {np.max(f1)}")
+                f1 = np.nan_to_num(f1)
+                f1 = np.clip(f1, 0, 255)
+
+            try:
+                img = Image.fromarray(f1.astype('uint8'))
+                # Альтернативный вариант сохранения
+                img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png',
+                         compress_level=6, optimize=True)
+            except Exception as e:
+                print(f"Error saving frame {cnt}: {e}")
+                # Попробуем сохранить через OpenCV
+                try:
+
+                    cv2.imwrite(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png',
+                                cv2.cvtColor(f1.astype('uint8'), cv2.COLOR_RGB2BGR))
+                except Exception as e2:
+                    print(f"Also failed with OpenCV: {e2}")
+
         if cnt % 300 == 0:
             print("first smooth", cnt)
-        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
 
         del arr
         gc.collect()
@@ -170,9 +290,12 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     shuf_order = [eval(i) for i in shuf_order]
     # subtracting the average
     while cnt < count:
-
-        arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
-        a = cv2.cvtColor(arr[:1057, :], cv2.COLOR_BGR2YCrCb)
+        if is_image_valid(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"):
+            arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
+            a = cv2.cvtColor(arr[:1057, :], cv2.COLOR_BGR2YCrCb)
+        else:
+            arr = cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png")
+            a = cv2.cvtColor(arr[:1057, :], cv2.COLOR_BGR2YCrCb)
         # a = a[:, :, 0]
 
         try:
@@ -307,8 +430,12 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
         imgc.save(
             r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
 
+        if len(vot_sp) >= 10 and all(x > 0.99 for x in vot_sp[-10:]):
+            return stop_kadr1, vot_sp
+
         if cnt % 5 == 4:
-            v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", 0, cnt, 0.045)
+            v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - 400), cnt,
+                                0.045)
             vot_sp.append(np.round(max(v, 1 - v), 4))
             # extract_RS(cp,
             #            106, 127, Nbit)
@@ -318,41 +445,40 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
                 1 - compare(
                     r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(
                         cnt) + ".png", io.imread(PATH_IMG))), 4))
-            if cnt % 100 == 99:
-                print(tt, cnt, stop_kadr1)
-                print("after voting", tt, vot_sp)
+            if cnt % 20 == 19:
+                print(tt, alf, cnt, stop_kadr1)
+                print("after voting", tt, alf, vot_sp)
 
         cnt += 1
 
-    return stop_kadr1[-1]
+    return stop_kadr1, vot_sp
 
 
-def generate_video(bitr, image_folder):
+def generate_video(bitr, image_folder, st_frame=0):
     """
     Sequence of frames transform to compress video
+    :param st_frame: frame which start extraction
     :param image_folder: Folder which save all pictures after embedding
     :param bitr: bitrate of output video
     """
 
     if bitr != "orig":
-        video_name = 'need_video.mp4'
+        video_name = 'need_video.avi'
     else:
         video_name = "RB_codec.mp4"
     os.chdir(r"D:/pythonProject/phase_wm\frames_after_emb")
 
     images = [img for img in os.listdir(image_folder)
               if img.endswith(".png")]
-    sort_name_img = sort_spis(images, "frame")[:total_count]
+    sort_name_img = sort_spis(images, "frame")[st_frame:total_count + st_frame]
     frame = cv2.imread(os.path.join(image_folder, images[0]))
     height, width, layers = frame.shape
-    # fourcc = cv2.VideoWriter_fourcc(*'H264')
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
-    video = cv2.VideoWriter(video_name, 0, 29.97, (width, height))
+    video = cv2.VideoWriter(video_name, fourcc, 29.97, (width, height))
 
     cnt = 0
     for image in sort_name_img:
-        # if cnt % 300 == 0:
-
         video.write(cv2.imread(os.path.join(image_folder, image)))
         if cnt % 299 == 0:
             print(cnt)
@@ -361,9 +487,11 @@ def generate_video(bitr, image_folder):
     video.release()
 
     if bitr != "orig":
-        os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
-                  f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
-        return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
+        os.system(
+            f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.avi -b:v {bitr}M -c:v libx264 "
+            f"D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+
+    return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
 
 
 def compare(path, orig_qr):
@@ -385,7 +513,7 @@ def compare(path, orig_qr):
 
 
 def vot_by_variance(path_imgs, start, end, treshold):
-    var_list = csv2list(r"D:/pythonProject/\phase_wm/RB_disp.csv")[start:end]
+    var_list = csv2list(r"D:/pythonProject/phase_wm/RB_disp.csv")[start:end]
     sum_matrix = np.zeros((int(img_wm.shape[0] / 16), int(img_wm.shape[1] / 16)))
     np_list = np.array(var_list)
     need_ind = [i for i in range(len(np_list)) if np_list[i] > treshold]
@@ -410,37 +538,77 @@ def vot_by_variance(path_imgs, start, end, treshold):
     return comp
 
 
+def reduce_to_blocks(img, block_size=16):
+    h, w = img.shape
+    return img.reshape(h // block_size, block_size, w // block_size, block_size).mean(axis=(1, 3)) > 0.5
+
+
+def vot_weighted(path_imgs, start, end, threshold=0.5):
+    H_BLOCKS, W_BLOCKS = 89, 89
+    sum_matrix = np.zeros((H_BLOCKS, W_BLOCKS), dtype=np.float32)
+    frame_weights = []
+
+    total_frames = end - start
+    for i in tqdm(range(start, end)):
+        try:
+            img = io.imread(f"{path_imgs}/result{i}.png")
+            if img.ndim == 3:
+                img = img[:, :, 0]  # grayscale if RGB
+
+            # Вес: линейно растущий
+            weight = (i - start + 1) / total_frames
+            frame_weights.append(weight)
+
+            sum_matrix += img.astype(np.float32) * weight
+        except Exception as e:
+            print(f"Ошибка при чтении {i}: {e}")
+
+    # Максимальный возможный вес (сумма всех весов)
+    total_weight = sum(frame_weights)
+
+    # Порог — голосование: если набрано больше threshold * total_weight → 1
+    vote_result = (sum_matrix >= threshold * 255 * total_weight).astype(np.uint8) * 255
+
+    # Сохраняем результат
+    Image.fromarray(vote_result).save(os.path.join(path_imgs, "voting.png"))
+    comp = compare(os.path.join(path_imgs, "voting.png"), io.imread(PATH_IMG))
+
+    return comp
+
+
 if __name__ == '__main__':
     l_fr = []
     ampl = 1
-    alfa = 0.0005
+    alfa = 0.001
     betta = 0.999
     teta = 2.9
-    # bitr = "orig"
-    total_count = 2107
+    bitr = "orig"
+    total_count = 297
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
     PATH_IMG = r"D:\pythonProject\Phase_WM_Clear\data/test_qr_89_89.png"
     img_wm = io.imread(PATH_IMG)
-    read_video(r'D:/pythonProject/phase_wm/cut_RealBarca120.mp4',
-               input_folder, total_count)
+    for vid_name in ["cut_RealBarca120", "IndiDance", "Road"]:
 
-    rand_k = 0
+        read_video(r'D:/pythonProject/phase_wm/' + vid_name + '.mp4',
+                   input_folder, total_count)
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count, 0)
+        for rand_frame in [25, 50, 100]:
 
-    embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count)
-    psnr_full = 0
-    for i in range(100):
-        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-        image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+            generate_video(bitr, output_folder, rand_frame)
 
-        psnr_full += (cv2.PSNR(image1, image2))
-    print("A = ", ampl, "PSNR: ", psnr_full / 100)
+            vot_sp = []
+            stop_kadr1 = []
 
-    for btr in [10, 5]:
-        vot_sp = []
-        stop_kadr1 = []
-        generate_video(btr, output_folder)
-        l_fr.append(extract(alfa, betta, teta, img_wm.shape[0], rand_k, total_count))
+            stop_kadr, vot_sp_final = extract(alfa, betta, teta, img_wm.shape[0], 0, total_count)
 
-        print("Acc-cy of last frame", l_fr)
+            print("Acc-cy of last frame", stop_kadr[-1])
+
+            # Запись vot_sp_final в файл
+            with open(f'a{ampl}_vot_sp_final_{vid_name}_no_c_alf_rf_mjpg.txt', 'a') as f_vot:
+                f_vot.write(f"rand_frame={rand_frame}: {vot_sp_final}\n")
+
+            # Запись stop_kadr1 в файл
+            with open(f'a{ampl}_stop_kadr_{vid_name}_no_c_alf_001_var_mjpg.txt', 'a') as f_stop:
+                f_stop.write(f"rand_frame={rand_frame}: {stop_kadr}\n")
