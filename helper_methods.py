@@ -28,8 +28,12 @@ def read2list(file):
     return lines
 
 
+import time
+
+
 def read_video(path, path_to_save, final_frame):
     vidcap = cv2.VideoCapture(path)
+    print(vidcap, path)
     count_frame = 0
     success = True
     pix100 = []
@@ -38,13 +42,18 @@ def read_video(path, path_to_save, final_frame):
 
         if success:
             cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
+            time.sleep(0.009)
             pix100.append(image[100, 100, 0])
         if count_frame % 250 == 249:
-            print("записан кадр", count_frame, )
+            print("Р·Р°РїРёСЃР°РЅ РєР°РґСЂ", count_frame, )
 
         if cv2.waitKey(10) == 27:
             break
         count_frame += 1
+
+    vidcap.release()
+    cv2.destroyAllWindows()
+
     return count_frame, pix100
 
 
