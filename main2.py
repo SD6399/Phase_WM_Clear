@@ -16,7 +16,7 @@ from scpetrcal_halftone import check_spatial2spectr
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
+def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, var):
     """
     Procedure embedding
     :param binary_image: embedding code
@@ -49,7 +49,7 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
               if img.endswith(".png")]
 
     # The list should be sorted by numbers after the name
-    sort_name_img = sort_spis(images, "sum_mosaic")[:total_count]
+    sort_name_img = sort_spis(images, "frame")[:total_count]
     cnt = 0
 
     diff_neighb = []
@@ -128,11 +128,18 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt):
         # diff_neighb.append((def_img - a)[100, 100, 0])
         tmp = cv2.cvtColor(def_img, cv2.COLOR_YCrCb2BGR)
 
+        row, col, ch = tmp.shape
+        mean = 0
+        sigma = var ** 0.5
+        gauss = np.random.normal(mean, sigma, (row, col, ch))
+        gauss = gauss.reshape(tmp.shape)
+        noisy = np.clip(tmp + gauss, 0, 255)
+
         # Converting the YCrCb matrix to BGR
         img_path = os.path.join(folder_to_save)
-        cv2.imwrite(img_path + "frame" + str(cnt) + ".png", tmp)
+        cv2.imwrite(img_path + "frame" + str(cnt) + ".png", noisy)
 
-        if cnt % 70 == 0:
+        if cnt % 170 == 0:
             print("wm embed", cnt)
 
         cnt += 1
@@ -166,7 +173,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
     :param rand_fr: the frame from which the extraction begins
     :return: the path to the final image
     """
-    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
+    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.avi'
 
     count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
     psnr_full = 0
@@ -226,188 +233,6 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
 
     # reading a shuffled object
 
-    # subtracting the average
-    # while cnt < count:
-    #
-    #     arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
-    #     # arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/frame" + str(cnt) + ".png"))
-    #     a = cv2.cvtColor(arr, cv2.COLOR_BGR2YCrCb)
-    #
-    #     f1 = np.float32(
-    #         cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
-    #     f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
-    #     a1 = np.where(a < f1, f1 - a, a - f1)
-    #
-    #     a1 = a1[0:1024, 0:1920, 0]
-    #     # a1 = a[0:512, 0:512, 0]
-    #
-    #     # res_1d = np.ravel(a1)[:256 - 1920]
-    #     # start_qr = np.resize(res_1d, (size_wm, size_wm))
-    #     #
-    #     # unshuf_order = np.zeros_like(shuf_order)
-    #     # unshuf_order[shuf_order] = np.arange(start_qr.size)
-    #     # unshuffled_data = np.ravel(start_qr)[unshuf_order]
-    #     # matr_unshuf = np.resize(unshuffled_data, (size_wm, size_wm))
-    #     a = a1
-    #     # extraction of watermark
-    #     # a = a1[20:1060, 440:1480, 0]
-    #     g = np.copy(d)
-    #     d = np.copy(f)
-    #
-    #     if cnt == rand_fr:
-    #         f = np.copy(a1)
-    #         d = np.ones((1024, 1920))
-    #
-    #     else:
-    #         if cnt == rand_fr + 1:
-    #             f = 2 * beta * np.cos(tt) * np.float32(d) + np.float32(a)
-    #
-    #         else:
-    #             f = 2 * beta * np.cos(tt) * np.float32(d) - (beta ** 2) * np.float32(g) + np.float32(a)
-    #
-    #     # if cnt == rand_fr:
-    #     #     f2 = np.copy(a1)
-    #     #     d2 = np.ones((size_wm, size_wm))
-    #     #
-    #     # else:
-    #     #     if cnt == rand_fr + 1:
-    #     #         f2 = 2 * beta * np.cos(tt) * np.float32(d2) + np.float32(f)
-    #     #
-    #     #     else:
-    #     #         f2 = 2 * beta * np.cos(tt) * np.float32(d2) - (beta ** 2) * np.float32(g2) + np.float32(f)
-    #
-    #     yc = np.float32(f) - beta * np.cos(tt) * np.float32(d)
-    #     ys = beta * np.sin(tt) * np.float32(d)
-    #
-    #     g2 = np.copy(d2)
-    #     d2 = np.copy(g2)
-    #
-    #     tmp_signal = np.zeros((1024, 1920), dtype=np.complex_)
-    #     tmp_signal.real = yc
-    #     tmp_signal.imag = ys
-    #
-    #     if cnt == rand_fr:
-    #         f2 = tmp_signal
-    #         d2 = np.ones((1024, 1920), dtype=np.complex_)
-    #         d2.imag = np.ones((1024, 1920))
-    #
-    #     else:
-    #         if cnt == rand_fr + 1:
-    #             f2.real = 2 * beta * np.cos(tt) * np.float32(d2.real) + np.float32(tmp_signal.real)
-    #             f2.imag = 2 * beta * np.cos(tt) * np.float32(d2.imag) + np.float32(tmp_signal.imag)
-    #         else:
-    #             f2.real = 2 * beta * np.cos(tt) * np.float32(d2.real) - (beta ** 2) * np.float32(g2.real) + np.float32(
-    #                 tmp_signal.real)
-    #             f2.imag = 2 * beta * np.cos(tt) * np.float32(d2.imag) - (beta ** 2) * np.float32(g2.imag) + np.float32(
-    #                 tmp_signal.imag)
-    #
-    #     c = np.cos(tt * cnt) * np.float32(f2.real) + np.sin(tt * cnt) * np.float32(f2.imag)
-    #     s = np.cos(tt * cnt) * np.float32(f2.imag) - np.sin(tt * cnt) * np.float32(f2.real)
-    #
-    #     # c = np.cos(tt * cnt) * np.float32(yc) + np.sin(tt * cnt) * np.float32(ys)
-    #     # s = np.cos(tt * cnt) * np.float32(ys) - np.sin(tt * cnt) * np.float32(yc)
-    #
-    #     try:
-    #         fi = np.where(c < 0, np.arctan((s / c)) + np.pi,
-    #                       np.where(s >= 0, np.arctan((s / c)), np.arctan((s / c)) + 2 * np.pi))
-    #     except ZeroDivisionError:
-    #         fi = np.full(f.shape, 255)
-    #     fi = np.nan_to_num(fi)
-    #     fi = np.where(fi < -np.pi / 4, fi + 2 * np.pi, fi)
-    #     fi = np.where(fi > 9 * np.pi / 4, fi - 2 * np.pi, fi)
-    #
-    #     wm = 255 * fi / 2 / math.pi
-    #
-    #     wm[wm > 255] = 255
-    #     wm[wm < 0] = 0
-    #
-    #     a1 = wm
-    #     # # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
-    #     # img = Image.fromarray(big2small(a1).astype('uint8'))
-    #     # img.save(r'D:/pythonProject/phase_wm\extract/wm/result' + str(cnt) + '.png')
-    #     # bringing to the operating range
-    #
-    #     # l_kadr = io.imread(r'D:/pythonProject/phase_wm\extract/wm/result' + str(cnt) + '.png')
-    #     # compr= l_kadr==a1
-    #     # fi = np.copy(l_kadr)
-    #     fi = (a1 * np.pi * 2) / 255
-    #
-    #     coord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1), ((fi - np.pi) / np.pi * 2 - 1))
-    #     coord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
-    #                       np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
-    #                                ((fi - 0.5 * np.pi) * 2 / np.pi - 1) * (-1)))
-    #
-    #     # noinspection PyTypeChecker
-    #     hist, bin_centers = histogram(coord1, normalize=False)
-    #     # noinspection PyTypeChecker
-    #     hist2, bin_centers2 = histogram(coord2, normalize=False)
-    #
-    #     mx_sp = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
-    #     ver = hist2 / np.sum(hist)
-    #     mo = np.sum(bin_centers2 * ver)
-    #     dis = np.abs(mo - mx_sp)
-    #     pr1 = np.min(dis)
-    #
-    #     mx_sp2 = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
-    #     ver2 = hist2 / np.sum(hist2)
-    #     mo = np.sum(bin_centers2 * ver2)
-    #     dis2 = np.abs(mo - mx_sp2)
-    #     x = np.min(dis2)
-    #
-    #     idx = np.argmin(np.abs(dis2 - x))
-    #     pr2 = bin_centers2[idx]
-    #
-    #     moment = np.where(pr1 < 0, np.arctan((pr2 / pr1)) + np.pi,
-    #                       np.where(pr2 >= 0, np.arctan((pr2 / pr1)), np.arctan((pr2 / pr1)) + 2 * np.pi))
-    #
-    #     if np.pi / 4 <= moment <= np.pi * 2 - np.pi / 4:
-    #         fi_tmp = fi - moment + 0.5 * np.pi * 0.5
-    #
-    #     elif moment > np.pi * 2 - np.pi / 4:
-    #         fi = np.where(fi < np.pi / 4, fi + 2 * np.pi, fi)
-    #         fi_tmp = fi - moment + 0.5 * np.pi * 0.5
-    #
-    #     else:
-    #         fi_tmp = fi - 2 * np.pi - moment + 0.5 * np.pi * 0.5
-    #
-    #     fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
-    #     fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
-    #     fi_tmp[fi_tmp < 0] = 0
-    #     fi_tmp[fi_tmp > np.pi] = np.pi
-    #     l_kadr = fi_tmp * 255 / np.pi
-    #
-    #     l_kadr = 255 * (l_kadr - np.min(l_kadr)) / (np.max(l_kadr) - np.min(l_kadr))
-    #
-    #     img = Image.fromarray(l_kadr.astype('uint8'))
-    #     img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas/result" + str(cnt) + ".png")
-    #
-    #     test_var = np.zeros((1024, 1024))
-    #     for row_ind in range(0, l_kadr.shape[0] - 1024, 1024):
-    #         for col_ind in range(0, l_kadr.shape[1] - 1024, 1024):
-    #             test_var += l_kadr[row_ind:row_ind + 1024, col_ind:col_ind + 512] / 6
-    #
-    #     variance.append(np.var(test_var - img_wm))
-    #     if cnt % 20 == 19:
-    #         # ser6 = []
-    #         spector = np.zeros((1024, 1024))
-    #         for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 256):
-    #             for col_ind in range(0, l_kadr.shape[1] - size_wm + 1, 256):
-    #                 # print(row_ind, col_ind, l_kadr.shape)
-    #                 spector += check_spatial2spectr(l_kadr[row_ind:row_ind + 1024, col_ind:col_ind + 1024]) / 4
-    #
-    #         stop_kadr1.append(
-    #             compare_qr(spector, io.imread(r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm.png"),
-    #                        shift_qr), )
-    #
-    #         print(ampl, cnt, stop_kadr1)
-    #
-    #         if cnt % 200 == 199:
-    #             img = Image.fromarray(spector.astype('uint8'))
-    #             img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
-    #             print(ampl, cnt, stop_kadr1)
-    #         # stop_kadr1.append(ser6)
-    #
-    #     cnt += 1
     diff100 = []
     while cnt < count:
 
@@ -616,16 +441,19 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             stop_kadr1.append(round(
                 compare_qr(spector,
                            io.imread(
-                               r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_40_49.png"),
+                               r"D:/pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_0_49.png"),
                            shift_qr, cnt), 5))
+
+            if len(vot_sp) >= 10 and all(x > 0.991 for x in vot_sp[-10:]):
+                return stop_kadr1, vot_sp
 
             if cnt % 10 == 9:
                 v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - 2000), cnt,
                                     0.045)
                 vot_sp.append(round(max(v, 1 - v), 5))
                 if cnt % 100 == 99:
-                    print(ampl, alf, cnt, stop_kadr1)
-                    print("after voting", cnt, tt, vot_sp)
+                    print(ampl, shift, bitr, alf, cnt, stop_kadr1[-20:])
+                    print("after voting", cnt, "Shift ", shift, "Bitrate =", bitr, tt, vot_sp)
 
             # if cnt % 200 == 199:
             #     # print(max(ser6), min(ser6), np.mean(ser6))
@@ -636,12 +464,11 @@ def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
             # stop_kadr1.append(ser6)
 
         cnt += 1
-    # print("Difference 100", diff100)
 
     return variance, stop_kadr1
 
 
-def generate_video(bitr, image_folder):
+def generate_video(bitr, image_folder,st_frame):
     """
     Sequence of frames transform to compress video
     :param image_folder: folder for output frames
@@ -650,19 +477,19 @@ def generate_video(bitr, image_folder):
     """
 
     if bitr != "orig":
-        video_name = 'need_video.mp4'
+        video_name = 'need_video.avi'
     else:
-        video_name = "RB_codec.mp4"
+        video_name = "RB_codec.avi"
     os.chdir(image_folder)
 
     images = [img for img in os.listdir(image_folder)
               if img.endswith(".png")]
-    sort_name_img = sort_spis(images, "frame")[:total_count]
+    sort_name_img = sort_spis(images, "frame")[st_frame:total_count+st_frame]
     frame = cv2.imread(os.path.join(image_folder, images[0]))
     height, width, layers = frame.shape
-    # fourcc = cv2.VideoWriter_fourcc(*'H264')
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
-    video = cv2.VideoWriter(video_name, 0, 29.97, (width, height))
+    video = cv2.VideoWriter(video_name, fourcc, 29.97, (width, height))
 
     cnt = 0
     for image in sort_name_img:
@@ -677,8 +504,8 @@ def generate_video(bitr, image_folder):
 
     if bitr != "orig":
         print("Codec worked")
-        os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.mp4 -b:v {bitr}M -vcodec"
-                  f" libx264  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+        os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.avi -b:v {bitr}M -vcodec"
+                  f" mpeg2video  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.avi")
 
 
 def vot_by_variance(path_imgs, start, end, treshold):
@@ -700,7 +527,7 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
     sum_matrix[sum_matrix <= count * 0.5] = 0
     sum_matrix[sum_matrix > count * 0.5] = 255
-    print(np.count_nonzero(sum_matrix))
+
     # img1 = Image.fromarray(sum_matrix.astype('uint8'))
     # img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
     orig_qr = io.imread(r"D:\pythonProject\Phase_WM_Clear/data/test_qr_49_49.png")
@@ -714,50 +541,52 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 
 if __name__ == '__main__':
-    total_count = 308
+    total_count = 258
     # l_fr = []
-    ampl = 1
+    ampl = 3
     teta = 2.9
     alfa = 0.005
     betta = 0.999
     # teta = 2.6
-    # bitr = 20
-    shift = 40
-    input_folder = "D:/pythonProject/phase_wm/synthesis_video/"
-    # input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
-    output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
-    PATH_IMG = r"D:\pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_40_wm_49.png"
-
-    img_wm = io.imread(PATH_IMG)
-
-    # count = read_video(r'D:/pythonProject/phase_wm/Road.mp4',
-    #                    input_folder, total_count)
-    #
-
     bitr = "orig"
-    for ampl in [1, 2, 3, 4]:
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta)
-        psnr_full = 0
-        for i in range(50):
-            image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
-            image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+    shift = 0
+    # input_folder = "D:/pythonProject/phase_wm/synthesis_video/"
+    input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
+    output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
 
-            psnr_full += (cv2.PSNR(image1, image2))
+    PATH_IMG = f"D:/pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_{shift}_wm_49.png"
+    img_wm = io.imread(PATH_IMG)
+    for vid_name in ["cut_RealBarca120", "IndiDance", "Road"]:
+        count = read_video(fr'D:/pythonProject/phase_wm/{vid_name}.mp4',
+                           input_folder, total_count)
+        embed(input_folder, output_folder, PATH_IMG, ampl, teta, 0)
+        for rand_k in [0, 25, 50, 100]:
 
-        print("A = ", ampl, "PSNR: ", psnr_full / 50)
+            psnr_full = 0
+            for i in range(100):
+                image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+                image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
 
-        if bitr != 50:
-            generate_video(bitr, output_folder)
-        rand_k = 0
-        vot_sp = []
-        stop_kadr1 = []
-        # stop_kadr2 = []
-        # stop_kadr1_bin = []
-        # stop_kadr2_bin = []
+                psnr_full += (cv2.PSNR(image1, image2))
 
-        # total_count = 2997
+            print("video", vid_name, "A = ", ampl, "PSNR: ", psnr_full / 100)
 
-        var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], rand_k, shift)
+            if bitr != 50:
+                generate_video(bitr, output_folder,rand_k)
+            rand_k = 0
+            vot_sp = []
+            stop_kadr1 = []
+            var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], 0, shift)
+
+            base_filename = f'D:/pythonProject/Phase_WM_Clear/spector_random_shift_0_ampl{ampl}_{vid_name}mpeg2-mjpg_alf_0005'
+            with (open(f'{base_filename}_vot_sp_final.txt', 'a') as f_vot, open(f'{base_filename}_stop_kadr.txt',
+                                                                                'a') as f_stop):
+                f_vot.write(f"rand_k={rand_k}: {vot_sp}\n")
+                f_stop.write(f"rand_k={rand_k}: {stop_kadr1}\n")
+            if not os.path.exists(f'{base_filename}__stop_kadr.txt'):
+                print(f"FILE DONT EXIST")
+            else:
+                print("FILE EXIST")
 
         # with open(
         #         r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
