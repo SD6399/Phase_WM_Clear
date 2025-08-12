@@ -132,7 +132,7 @@ def read2list(file):
 def extract(alf, bet, rand_fr, tresh):
     size_wm = 1424
 
-    path_of_video = r'D:/phase_wm_graps/BBC/frames_after_emb\RB_codec.mp4'
+    path_of_video = r'D:/phase_wm_graps/BBC/frames_after_emb\RB_codec.avi'
     vidcap = cv2.VideoCapture(path_of_video)
     vidcap.open(path_of_video)
 
@@ -279,7 +279,7 @@ def generate_video(bitr, image_folder):
     if bitr != "orig":
         video_name = 'need_video.avi'
     else:
-        video_name = "RB_codec.mp4"
+        video_name = "RB_codec.avi"
 
     fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 
@@ -298,7 +298,7 @@ def generate_video(bitr, image_folder):
     if bitr != "orig":
         print("Codec worked")
         os.system(f"ffmpeg -y -i D:/phase_wm_graps/BBC/frames_after_emb/need_video.avi -b:v {bitr}M -vcodec"
-                  f" libx264 D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.mp4")
+                  f" libx264 D:/phase_wm_graps/BBC/frames_after_emb/RB_codec.avi")
 
 
 def compare(path):  # сравнивание извлечённого QR с исходным

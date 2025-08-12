@@ -213,7 +213,7 @@ def extract(alf, beta, tt, size_wm, rand_fr, count):
     :param rand_fr: the frame from which the extraction begins
     :return: the path to the final image
     """
-    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.mp4'
+    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.avi'
 
     read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', count)
     # reextract_corrupted_frames(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
@@ -465,7 +465,7 @@ def generate_video(bitr, image_folder, st_frame=0):
     if bitr != "orig":
         video_name = 'need_video.avi'
     else:
-        video_name = "RB_codec.mp4"
+        video_name = "RB_codec.avi"
     os.chdir(r"D:/pythonProject/phase_wm\frames_after_emb")
 
     images = [img for img in os.listdir(image_folder)
@@ -489,9 +489,9 @@ def generate_video(bitr, image_folder, st_frame=0):
     if bitr != "orig":
         os.system(
             f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.avi -b:v {bitr}M -c:v libx264 "
-            f"D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4")
+            f"D:/pythonProject/phase_wm/frames_after_emb/RB_codec.avi")
 
-    return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.mp4"
+    return "D:/pythonProject/phase_wm/frames_after_emb/RB_codec.avi"
 
 
 def compare(path, orig_qr):
@@ -583,7 +583,7 @@ if __name__ == '__main__':
     betta = 0.999
     teta = 2.9
     bitr = "orig"
-    total_count = 297
+    total_count = 197
     input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
     output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
     # PATH_IMG = r"D:/pythonProject//phase_wm\qr_ver18_H.png"
@@ -593,10 +593,10 @@ if __name__ == '__main__':
 
         read_video(r'D:/pythonProject/phase_wm/' + vid_name + '.mp4',
                    input_folder, total_count)
-        embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count, 0)
-        for rand_frame in [25, 50, 100]:
 
-            generate_video(bitr, output_folder, rand_frame)
+        for variance in [0, 1, 5, 9]:
+            embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count, variance)
+            generate_video(bitr, output_folder, 0)
 
             vot_sp = []
             stop_kadr1 = []
@@ -606,9 +606,9 @@ if __name__ == '__main__':
             print("Acc-cy of last frame", stop_kadr[-1])
 
             # Запись vot_sp_final в файл
-            with open(f'a{ampl}_vot_sp_final_{vid_name}_no_c_alf_rf_mjpg.txt', 'a') as f_vot:
-                f_vot.write(f"rand_frame={rand_frame}: {vot_sp_final}\n")
+            with open(f'a{ampl}_vot_sp_final_{vid_name}_no_c_alf_noise_mjpg.txt', 'a') as f_vot:
+                f_vot.write(f"variance={variance}: {vot_sp_final}\n")
 
             # Запись stop_kadr1 в файл
-            with open(f'a{ampl}_stop_kadr_{vid_name}_no_c_alf_001_var_mjpg.txt', 'a') as f_stop:
-                f_stop.write(f"rand_frame={rand_frame}: {stop_kadr}\n")
+            with open(f'a{ampl}_stop_kadr_{vid_name}_no_c_alf_001_noise_mjpg.txt', 'a') as f_stop:
+                f_stop.write(f"variance={variance}: {stop_kadr}\n")
