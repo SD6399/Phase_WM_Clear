@@ -2,7 +2,7 @@
 import math
 from skimage import io
 import psutil
-# from reedsolo import RSCodec
+import time
 from skimage.exposure import histogram
 import cv2
 import os
@@ -118,11 +118,9 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count,
     :param tt: reference frequency parameter
     """
 
-    fi = math.pi / 2 / 255
+    fi = math.pi / (2 * 255)
     st_qr = cv2.imread(binary_image)
     st_qr = cv2.cvtColor(st_qr, cv2.COLOR_BGR2YCrCb)
-
-    lst_100 = []
 
     data_length = st_qr[:, :, 0].size
     shuf_order = np.arange(data_length)
@@ -142,61 +140,47 @@ def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, count,
     images = [img for img in os.listdir(folder_orig_image)
               if img.endswith(".png")]
 
+    temp = fi * pict
+
     # The list should be sorted by numbers after the name
     sort_name_img = sort_spis(images, "frame")[:count]
     cnt = 0
 
-    while cnt < len(sort_name_img):
+    for cnt, img_name in enumerate(sort_name_img):
+        img_path = os.path.join(folder_orig_image, img_name)
+        imgg = cv2.imread(img_path)
+        if imgg is None:
+            print(f"[Ошибка] Изображение не загружено: {img_path}")
+            continue
 
-        try:
-            imgg = cv2.imread(folder_orig_image + sort_name_img[cnt])
-            if imgg is None:
-                raise ValueError(f"Изображение не загружено: {folder_orig_image + sort_name_img[cnt]}")
-            a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
-        except Exception as e:
-            print(f"[Ошибка] {e} в файле {folder_orig_image + sort_name_img[cnt]}")
+        a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb).astype(np.float32)
 
-        # translation to the YCrCb space
-        # a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
-        # a = a.astype(float)
+        # Compute watermark for current frame
+        wm = amplitude * np.sin(cnt * tt + temp)  # shape (1057, 1920)
 
-        temp = fi * pict
-        # A*sin(m * teta + fi)
-        wm = np.array((amplitude * np.sin(cnt * tt + temp)))
-
-        copy_a = np.copy(a)
         if amplitude == 1:
-            wm = np.where(wm > 0, 1, -1)
-        # Embedding in the Y-channel
-        a[0:1057, :, 0] = np.where(np.float32(a[0:1057, :, 0] + wm) > 255, 255,
-                                   np.where(a[0:1057, :, 0] + wm < 0, 0, np.float32(a[0:1057, :, 0] + wm)))
+            wm = np.where(wm > 0, 1.0, -1.0)
 
-        lst_100.append(a[100, 100, 0] - copy_a[100, 100, 0])
-        # print(lst_100)
-        # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
-        #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
-        #                                             np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0])))
-        tmp = cv2.cvtColor(a, cv2.COLOR_YCrCb2RGB)
+        # Embed into Y channel (only first 1057 rows)
+        y_channel = a[:1057, :, 0]
+        new_y = y_channel + wm
+        np.clip(new_y, 0, 255, out=new_y)
+        a[:1057, :, 0] = new_y
 
-        row, col, ch = tmp.shape
-        mean = 0
-        sigma = var ** 0.5
-        gauss = np.random.normal(mean, sigma, (row, col, ch))
-        gauss = gauss.reshape(tmp.shape)
-        noisy = np.clip(tmp + gauss, 0, 255)
-        # Converting the YCrCb matrix to BGR
-        img_path = os.path.join(folder_to_save)
-        img = Image.fromarray(noisy.astype('uint8'))
+        # Convert back to RGB for noise addition
+        tmp = cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_YCrCb2RGB).astype(np.float32)
 
-        img.save(img_path + "frame" + str(cnt) + ".png")
+        # Add Gaussian noise
+        if var > 0:
+            noise = np.random.normal(0, np.sqrt(var), tmp.shape)
+            tmp = np.clip(tmp + noise, 0, 255)
+
+        # Save image
+        output_img = Image.fromarray(tmp.astype(np.uint8))
+        output_img.save(os.path.join(folder_to_save, f"frame{cnt}.png"))
+
         if cnt % 100 == 0:
             print("wm embed", cnt)
-
-        cnt += 1
-
-        with open('diff_wm.txt', 'w') as f:
-            for line in lst_100:
-                f.write(f"{line}\n")
 
 
 import cv2
@@ -595,7 +579,10 @@ if __name__ == '__main__':
                    input_folder, total_count)
 
         for variance in [0, 1, 5, 9]:
+            start = time.perf_counter()
             embed(input_folder, output_folder, PATH_IMG, ampl, teta, total_count, variance)
+            end = time.perf_counter()
+            print(f"Время выполнения: {end - start:.6f} секунд")
             generate_video(bitr, output_folder, 0)
 
             vot_sp = []
