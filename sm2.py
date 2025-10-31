@@ -34,7 +34,7 @@ def read_video(path, path_to_save, final_frame):
 def embed(my_i, count, var):
     cnt = 0
 
-    PATH_IMG = r"D:\pythonProject\Phase_WM_Clear\data/test_qr_89_89.png"
+    PATH_IMG = r"D:/python_projects/Phase_WM_Clear/data/RS_cod89x89.png"
 
     st_qr = cv2.imread(PATH_IMG)
     st_qr = cv2.cvtColor(st_qr, cv2.COLOR_BGR2YCrCb)[:, :, 0]
@@ -55,7 +55,7 @@ def embed(my_i, count, var):
     pict[-1, 256 - 1920:] = 0
 
     while cnt < count:
-        imgg = cv2.imread(r"D:/pythonProject/phase_wm/frames_orig_video/frame%d.png" % cnt)
+        imgg = cv2.imread(r"D:/python_projects/phase_wm/frames_orig_video/frame%d.png" % cnt)
 
         a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
 
@@ -78,7 +78,7 @@ def embed(my_i, count, var):
 
         img = Image.fromarray(noisy.astype('uint8'))
 
-        img.save(r"D:/pythonProject/phase_wm/frames_after_emb/frame" + str(cnt) + ".png")
+        img.save(r"D:/python_projects/phase_wm/frames_after_emb/frame" + str(cnt) + ".png")
         if cnt % 300 == 0:
             print("wm embed", cnt)
         cnt += 1
@@ -98,18 +98,18 @@ def read2list(file):
 def extract(alf, bet, rand_fr, tresh):
     size_wm = 1424
 
-    path_of_video = r'D:/pythonProject/phase_wm/frames_after_emb/RB_codec.avi'
+    path_of_video = r'D:/python_projects/phase_wm/frames_after_emb/RB_codec.avi'
     vidcap = cv2.VideoCapture(path_of_video)
     vidcap.open(path_of_video)
 
     # count = 0
-    read_video(path_of_video, r"D:/pythonProject/phase_wm/extract", total_count)
+    read_video(path_of_video, r"D:/python_projects/phase_wm/extract", total_count)
 
     f1 = np.zeros((1080, 1920))
     cnt = int(rand_fr)
 
     while cnt < total_count:
-        filename = f"D:/pythonProject/phase_wm/extract/frame{cnt}.png"
+        filename = f"D:/python_projects/phase_wm/extract/frame{cnt}.png"
         if not os.path.exists(filename):
             print(f"[Error] File Don't exist: {filename}")
             continue
@@ -133,7 +133,7 @@ def extract(alf, bet, rand_fr, tresh):
         if cnt % 80 == 0:
             print("first smooth", cnt)
         img.save(
-            r'D:/pythonProject/phase_wm/extract/first_smooth/result' + str(cnt) + '.png')
+            r'D:/python_projects/phase_wm/extract/first_smooth/result' + str(cnt) + '.png')
 
         cnt += 1
 
@@ -146,18 +146,18 @@ def extract(alf, bet, rand_fr, tresh):
     sp1 = []
     cnt = int(rand_fr)
     count = total_count
-    shuf_order = read2list(r'D:/pythonProject/phase_wm/shuf.txt')
+    shuf_order = read2list(r'D:/python_projects/phase_wm/shuf.txt')
     shuf_order = [eval(i) for i in shuf_order]
 
     while cnt < total_count:
         orig_arr = np.float32(
-            cv2.imread(r"D:/pythonProject/phase_wm/extract/frame" + str(cnt) + ".png"))
+            cv2.imread(r"D:/python_projects/phase_wm/extract/frame" + str(cnt) + ".png"))
 
         f1 = cv2.cvtColor(orig_arr[:1057, :], cv2.COLOR_BGR2YCrCb)
 
         # f1 = f1[:, :, 0]
         arr = np.float32(cv2.imread(
-            r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
+            r"D:/python_projects/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
         a = cv2.cvtColor(arr[:1057, :], cv2.COLOR_BGR2YCrCb)
 
         a1 = a - f1
@@ -196,29 +196,29 @@ def extract(alf, bet, rand_fr, tresh):
             wm = np.zeros(small_frame.shape)
 
         img = Image.fromarray(wm.astype('uint8'))
-        img.save(r'D:/pythonProject/phase_wm/extract/wm/result' + str(cnt) + '.png')
+        img.save(r'D:/python_projects/phase_wm/extract/wm/result' + str(cnt) + '.png')
 
         if len(vot_sp) >= 30 and all(x > 0.99 for x in vot_sp[-30:]):
             print(stop_kadr1)
             print("voting list", vot_sp)
-            return r"D:/pythonProject/phase_wm/extract/after_normal_phas_bin/result" + str(
+            return r"D:/python_projects/phase_wm/extract/after_normal_phas_bin/result" + str(
                 cnt - 1) + ".png"
 
         if cnt % 5 == 4:
-            v = vot_by_variance(r"D:/pythonProject/phase_wm/extract/wm", max(0, cnt - 800),
+            v = vot_by_variance(r"D:/python_projects/phase_wm/extract/wm", max(0, cnt - 800),
                                 cnt, tresh)
             vot_sp.append(np.round(max(v, 1 - v), 4))
             stop_kadr1.append(np.round(max(compare(
-                r"D:/pythonProject/phase_wm/extract/wm/result" + str(cnt) + ".png"),
+                r"D:/python_projects/phase_wm/extract/wm/result" + str(cnt) + ".png"),
                 1 - compare(
-                    r"D:/pythonProject/phase_wm/extract/wm/result" + str(cnt) + ".png")), 4))
+                    r"D:/python_projects/phase_wm/extract/wm/result" + str(cnt) + ".png")), 4))
             if cnt % 100 == 99:
                 print(cnt, " alfa ", alf, stop_kadr1)
                 print("After voting ", vot_sp)
 
         cnt += 1
 
-    return r"D:/pythonProject/phase_wm/extract/after_normal_phas_bin/result" + str(
+    return r"D:/python_projects/phase_wm/extract/after_normal_phas_bin/result" + str(
         total_count - 1) + ".png"
 
 
@@ -260,12 +260,12 @@ def generate_video(bitr, image_folder, st_extract):
     if bitr != "orig":
         print("Codec worked")
         os.system(
-            f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.avi -b:v {bitr}M -vcodec"
-            f" libx264 D:/pythonProject/phase_wm/frames_after_emb/RB_codec.avi")
+            f"ffmpeg -y -i D:/python_projects/phase_wm/frames_after_emb/need_video.avi -b:v {bitr}M -vcodec"
+            f" libx264 D:/python_projects/phase_wm/frames_after_emb/RB_codec.avi")
 
 
 def compare(path):
-    orig_qr = io.imread(r"D:\pythonProject\Phase_WM_Clear\data/test_qr_89_89.png")
+    orig_qr = io.imread(r"D:\python_projects\Phase_WM_Clear\data/test_qr_89_89.png")
     orig_qr = np.where(orig_qr > 127, 255, 0)
     small_qr = big2small(orig_qr)
     sr_matr = np.zeros((1424, 1424, 3))
@@ -308,7 +308,7 @@ def diff_pix_between_neugb(qr1, qr2):
 
 
 def vot_by_variance(path_imgs, start, end, treshold):
-    var_list = csv2list(r"D:/pythonProject/phase_wm/RB_disp.csv")[start:end]
+    var_list = csv2list(r"D:/python_projects/phase_wm/RB_disp.csv")[start:end]
     # var_list = [0, 36, 77, 82, 120, 136, 184, 243, 278, 285, 290, 291, 308, 345, 348, 365, 375, 394, 403, 467]
 
     sum_matrix = np.zeros((89, 89))
@@ -332,14 +332,14 @@ def vot_by_variance(path_imgs, start, end, treshold):
     sum_matrix[sum_matrix <= count * 0.5] = 0
     sum_matrix[sum_matrix > count * 0.5] = 255
     img1 = Image.fromarray(sum_matrix.astype('uint8'))
-    img1.save(r"D:/pythonProject/phase_wm/voting/vot" + str(count) + ".png")
-    comp = compare(r"D:/pythonProject/phase_wm/voting/vot" + str(count) + ".png")
+    img1.save(r"D:/python_projects/phase_wm/voting/vot" + str(count) + ".png")
+    comp = compare(r"D:/python_projects/phase_wm/voting/vot" + str(count) + ".png")
     # print(count)
     # print(comp)
     if comp < 0.5:
         sum_matrix = np.where(sum_matrix == 255, 0, 255)
     img1 = Image.fromarray(sum_matrix.astype('uint8'))
-    img1.save(r"D:/pythonProject/phase_wm/voting/vot" + str(count) + ".png")
+    img1.save(r"D:/python_projects/phase_wm/voting/vot" + str(count) + ".png")
     # extract_RS(sum_matrix, rsc, Nbit)
 
     return comp
@@ -347,11 +347,11 @@ def vot_by_variance(path_imgs, start, end, treshold):
 
 if __name__ == '__main__':
 
-    # PATH_VIDEO = "D:/pythonProject/phase_wm/cut_RealBarca120.mp4"
-    output_folder = "D:/pythonProject/phase_wm/frames_after_emb"
-    input_folder = r"D:/pythonProject/phase_wm/frames_orig_video"
+    # PATH_VIDEO = "D:/python_projects/phase_wm/cut_RealBarca120.mp4"
+    output_folder = "D:/python_projects/phase_wm/frames_after_emb"
+    input_folder = r"D:/python_projects/phase_wm/frames_orig_video"
     rand_k = 0
-    total_count = 357
+    total_count = 117
     bitr = "orig"
 
     hm_list = []
@@ -359,21 +359,21 @@ if __name__ == '__main__':
     beta = 0.999
     sp = []
 
-    for vid_name in ["cut_RealBarca120", "IndiDance", "Road"]:
+    for vid_name in ["cut_RealBarca120"]:
 
-        read_video(r'D:/pythonProject/phase_wm/' + vid_name + '.mp4',
-                   input_folder, total_count)
+        # read_video(r'D:/python_projects/phase_wm/' + vid_name + '.mp4',
+        #            input_folder, total_count)
 
-        for ampl in range(1, 2):
+        for ampl in range(2, 3):
             embed(ampl, total_count, 0)
-            for rand_k in [0, 25, 55, 99]:
+            for rand_k in [0,]:
 
                 psnr_full = 0
                 for i in range(100):
                     image1 = cv2.imread(
-                        "D:/pythonProject/phase_wm/frames_after_emb/frame" + str(i) + ".png")
+                        "D:/python_projects/phase_wm/frames_after_emb/frame" + str(i) + ".png")
                     image2 = cv2.imread(
-                        "D:/pythonProject/phase_wm/frames_orig_video/frame" + str(
+                        "D:/python_projects/phase_wm/frames_orig_video/frame" + str(
                             i) + ".png")
 
                     psnr_full += (cv2.PSNR(image1, image2))
@@ -382,12 +382,12 @@ if __name__ == '__main__':
                 stop_kadr1 = []
                 vot_sp = []
                 print('GEN')
-                path_extract_code = extract(alfa, beta, 0, 0.045)
-                print("all")
-                print("alfa = ", alfa, "random frame = ", rand_k, "current percent", stop_kadr1)
-
-                with open(f'simple_a{ampl}_vot_sp_final_{vid_name}_random_alf_{alfa}.txt', 'a') as f_vot:
-                    f_vot.write(f"rand_k={rand_k}: {vot_sp}\n")
-
-                with open(f'simple_a{ampl}_stop_kadr_{vid_name}_random_alf_{alfa}.txt', 'a') as f_stop:
-                    f_stop.write(f"rand_k={rand_k}: {stop_kadr1}\n")
+                # path_extract_code = extract(alfa, beta, 0, 0.045)
+                # print("all")
+                # print("alfa = ", alfa, "random frame = ", rand_k, "current percent", stop_kadr1)
+                #
+                # with open(f'simple_a{ampl}_vot_sp_final_{vid_name}_random_alf_{alfa}.txt', 'a') as f_vot:
+                #     f_vot.write(f"rand_k={rand_k}: {vot_sp}\n")
+                #
+                # with open(f'simple_a{ampl}_stop_kadr_{vid_name}_random_alf_{alfa}.txt', 'a') as f_stop:
+                #     f_stop.write(f"rand_k={rand_k}: {stop_kadr1}\n")

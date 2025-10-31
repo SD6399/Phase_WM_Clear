@@ -57,6 +57,37 @@ def read_video(path, path_to_save, final_frame):
     return count_frame, pix100
 
 
+def read_video_repeat(path, path_to_save, final_frame):
+    vidcap = cv2.VideoCapture(path)
+    print(vidcap, path)
+    count_frame = 0
+
+    pix100 = []
+    for i in range(2):
+
+        vidcap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        success = True
+
+        while success and count_frame < final_frame * (i + 1):
+            success, image = vidcap.read()
+
+            if success:
+                cv2.imwrite(path_to_save + "/frame%d.png" % count_frame, image)
+                time.sleep(0.009)
+                pix100.append(image[100, 100, 0])
+            if count_frame % 50 == 49:
+                print("Р·Р°РїРёСЃР°РЅ РєР°РґСЂ", count_frame, )
+
+            if cv2.waitKey(10) == 27:
+                break
+            count_frame += 1
+
+    vidcap.release()
+    cv2.destroyAllWindows()
+
+    return count_frame, pix100
+
+
 def sort_spis(sp, keyword):
     """
 
