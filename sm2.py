@@ -361,8 +361,8 @@ if __name__ == '__main__':
 
     for vid_name in ["cut_RealBarca120"]:
 
-        # read_video(r'D:/python_projects/phase_wm/' + vid_name + '.mp4',
-        #            input_folder, total_count)
+        read_video(r'D:/python_projects/phase_wm/' + vid_name + '.mp4',
+                   input_folder, total_count)
 
         for ampl in range(2, 3):
             embed(ampl, total_count, 0)
