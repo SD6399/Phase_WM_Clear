@@ -1,0 +1,949 @@
+import math
+import mne
+import matplotlib.pyplot as plt
+from skimage import io
+# from reedsolo import RSCodec
+from skimage.exposure import histogram
+import cv2
+import os
+from pathlib import Path
+import numpy as np
+from PIL import Image, ImageFile
+# from qrcode_1 import read_qr, correct_qr
+from helper_methods import small2big, big2small, sort_spis, read_video
+from helper_methods import csv2list, bit_voting, compare_qr, binarize_qr
+from scpetrcal_halftone import check_spatial2spectr
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+# Длина развёртки синуса по времени (каналы × эти отсчёты)
+EEG_WM_LEN = 9760
+
+
+def crop_or_pad_time(x, n_samples):
+    """Привести матрицу (N, T) к ровно n_samples отсчётам по времени."""
+    x = np.asarray(x, dtype=np.float32)
+    if x.ndim != 2:
+        raise ValueError("expected (N, T) array")
+    n_ch, t0 = x.shape
+    if t0 == n_samples:
+        return x.copy()
+    if t0 > n_samples:
+        return x[:, :n_samples].copy()
+    out = np.zeros((n_ch, n_samples), dtype=np.float32)
+    out[:, :t0] = x
+    return out
+
+
+def first_smooth_eeg_nt(arr, alf, rand_t=0):
+    """Сглаживание вдоль времени, как первый цикл в extract() для видео."""
+    arr = np.asarray(arr, dtype=np.float32)
+    n_ch, t = arr.shape
+    f1 = np.zeros_like(arr)
+    alf = float(alf)
+    for j in range(t):
+        if j == rand_t:
+            f1[:, j] = arr[:, j]
+        else:
+            f1[:, j] = alf * f1[:, j - 1] + (1.0 - alf) * arr[:, j]
+    return f1
+
+
+def cwz_bits_to_st_qr(cwz_bits, binary_image_path):
+    """
+    Разворачивает последовательность бит ЦВЗ в 2D-паттерн той же размерности,
+    что и Y-канал эталонного изображения (как st_qr в main2 после imread).
+    """
+    bits = np.asarray(cwz_bits, dtype=np.float32).ravel()
+    n = bits.size
+    side = int(np.sqrt(n))
+    if side * side != n:
+        raise ValueError(f"cwz_bits length {n} is not a square; use 64 for 8×8.")
+    grid = bits.reshape(side, side)
+    ref = cv2.imread(binary_image_path)
+    if ref is None:
+        raise FileNotFoundError(binary_image_path)
+    ref_y = cv2.cvtColor(ref, cv2.COLOR_BGR2YCrCb)[:, :, 0]
+    h, w = ref_y.shape
+    st_qr = cv2.resize(grid, (w, h), interpolation=cv2.INTER_NEAREST) * 255.0
+    return st_qr.astype(np.float32)
+
+
+def st_qr_tile_for_nt(binary_image=None, cwz_bits=None, tile_n=16, tile_t=32):
+    """
+    Паттерн (tile_n, tile_t) для тайлинга на сетке каналы×время (N×T).
+    Из PNG (Y-канал) или из квадратной сетки бит с последующим resize.
+    """
+    tn, tt_res = int(tile_n), int(tile_t)
+    if binary_image is not None:
+        ref = cv2.imread(binary_image)
+        if ref is None:
+            raise FileNotFoundError(binary_image)
+        ref_y = cv2.cvtColor(ref, cv2.COLOR_BGR2YCrCb)[:, :, 0].astype(np.float32)
+        return cv2.resize(ref_y, (tt_res, tn), interpolation=cv2.INTER_AREA)
+    if cwz_bits is not None:
+        bits = np.asarray(cwz_bits, dtype=np.float32).ravel()
+        side = int(np.sqrt(bits.size))
+        if side * side != bits.size:
+            raise ValueError("cwz_bits must be a square length (e.g. 64).")
+        grid = bits.reshape(side, side)
+        return cv2.resize(grid, (tt_res, tn), interpolation=cv2.INTER_NEAREST) * 255.0
+    raise ValueError("Need binary_image or cwz_bits")
+
+
+def _clip_eeg_physical(patch, orig_patch):
+    """Ограничение в диапазоне исходного фрагмента (аналог 0..255 для кадра)."""
+    lo, hi = float(np.min(orig_patch)), float(np.max(orig_patch))
+    return np.clip(patch, lo, hi)
+
+
+def embed_eeg_nt(
+    eeg_nt,
+    st_qr,
+    amplitude,
+    tt,
+    n_samples=EEG_WM_LEN,
+    var=0.0,
+    eeg_phase_t=None,
+    amplitude_scale="auto",
+    clip_host_range=False,
+):
+    """
+    ЦВЗ в (N×T): развивающаяся по времени синусоида на n_samples отсчётах.
+
+    На каждом отсчёте t фаза несущей t*tt (как cnt*tt в видео, но непрерывно по t),
+    плюс fi*st_qr на тайле, fi=(pi/2)/255. Опционально eeg_phase_t[t] в радианах.
+
+    clip_host_range: если True — подрезка вставки в [min,max] патча (как для uint8);
+        для совместимости с extract_eeg_nt лучше False.
+    """
+    fi_coef = math.pi / 2 / 255
+    a = crop_or_pad_time(eeg_nt, int(n_samples))
+    st_qr = np.asarray(st_qr, dtype=np.float32)
+    if st_qr.ndim != 2:
+        raise ValueError("st_qr must be 2D (h, w)")
+    n_ch, t = a.shape
+    h_pat, w_pat = st_qr.shape
+
+    t_axis = np.arange(t, dtype=np.float64) * float(tt)
+    if eeg_phase_t is not None:
+        ph = np.asarray(eeg_phase_t, dtype=np.float64).ravel()
+        if ph.size < t:
+            ph = np.pad(ph, (0, t - ph.size))
+        t_axis = t_axis + ph[:t]
+
+    amp = float(amplitude)
+    sig_std = float(np.std(a))
+    if amplitude_scale == "auto":
+        amp *= sig_std * 0.1 + 1e-12
+    elif isinstance(amplitude_scale, (float, int)):
+        amp *= float(amplitude_scale) * sig_std + 1e-12
+
+    def_img = np.copy(a)
+
+    for i0 in range(0, n_ch, h_pat):
+        for j0 in range(0, t, w_pat):
+            use_h = min(h_pat, n_ch - i0)
+            use_w = min(w_pat, t - j0)
+            temp = fi_coef * st_qr[:use_h, :use_w]
+            phase_block = t_axis[j0 : j0 + use_w][np.newaxis, :]
+            wm = amp * np.sin(phase_block + temp.astype(np.float64))
+            wm = wm.astype(np.float32)
+            sl = (slice(i0, i0 + use_h), slice(j0, j0 + use_w))
+            orig = def_img[sl]
+            blended = orig + wm
+            if clip_host_range:
+                def_img[sl] = _clip_eeg_physical(blended, orig)
+            else:
+                def_img[sl] = blended
+
+    if var and float(var) > 0:
+        sigma = float(var) ** 0.5
+        if amplitude_scale == "auto" or isinstance(amplitude_scale, (float, int)):
+            sigma *= sig_std + 1e-12
+        def_img = def_img + np.random.normal(0.0, sigma, def_img.shape).astype(np.float32)
+
+    return def_img
+
+
+def eeg_phase_per_frame(eeg_data, n_frames, scale=0.05):
+    """
+    По аналогии с фазой кадра cnt*tt в main2: добавка к фазе синуса из EEG
+    (усреднение по каналам, равномерная выборка по времени записи).
+    """
+    n_ch, n_samp = eeg_data.shape
+    idx = np.linspace(0, n_samp - 1, int(n_frames), dtype=int)
+    sig = np.mean(eeg_data[:, idx], axis=0)
+    sig = sig - np.mean(sig)
+    std = np.std(sig)
+    sig = sig / (std + 1e-9)
+    return (sig * scale).astype(np.float32)
+
+
+def eeg_phase_per_sample(eeg_data, scale=0.05):
+    """Добавка к фазе на каждый отсчёт времени (длина T), для embed_eeg_nt."""
+    sig = np.mean(np.asarray(eeg_data, dtype=np.float32), axis=0)
+    sig = sig - np.mean(sig)
+    sig = sig / (np.std(sig) + 1e-9)
+    return (sig * float(scale)).astype(np.float32)
+
+
+def extract_eeg_nt(
+    marked,
+    alf,
+    beta,
+    tt,
+    rand_t=0,
+    n_samples=EEG_WM_LEN,
+    eeg_phase_t=None,
+    apply_hist_norm=True,
+):
+    """
+    Извлечение ЦВЗ из ЭЭГ (N×T) по тому же принципу, что extract() для видео:
+    сглаживание вдоль времени, разность с исходной разметкой, рекурсия по beta/cos(tt),
+    комплексное накопление и демодуляция cos(tt*t_idx), arctan2 → фаза → [0,255].
+
+    marked: запись с встроенным ЦВЗ, длина времени приводится к n_samples (9760).
+    t_idx в местах cos/sin — отсчёт времени 0..T-1 (аналог cnt для 9760 отсчётов).
+    """
+    marked = crop_or_pad_time(marked, int(n_samples))
+    n_ch, t = marked.shape
+    marked64 = marked.astype(np.float64)
+
+    smooth_m = first_smooth_eeg_nt(marked64.astype(np.float32), alf, rand_t).astype(np.float64)
+    a1_all = smooth_m - marked64
+
+    f = np.zeros(n_ch, dtype=np.float64)
+    d = np.zeros(n_ch, dtype=np.float64)
+    g = np.zeros(n_ch, dtype=np.float64)
+    f2 = np.zeros(n_ch, dtype=np.complex128)
+    d2 = np.zeros(n_ch, dtype=np.complex128)
+    g2 = np.zeros(n_ch, dtype=np.complex128)
+
+    out = np.zeros((n_ch, t), dtype=np.float32)
+
+    for t_idx in range(rand_t, t):
+        a1_col = a1_all[:, t_idx]
+
+        g = d.copy()
+        d = f.copy()
+        if t_idx == rand_t:
+            f = a1_col.copy()
+            d = np.ones(n_ch, dtype=np.float64)
+        else:
+            if t_idx == rand_t + 1:
+                f = 2 * beta * np.cos(tt) * d + a1_col
+            else:
+                f = 2 * beta * np.cos(tt) * d - (beta ** 2) * g + a1_col
+
+        yc = f - beta * np.cos(tt) * d
+        ys = beta * np.sin(tt) * d
+
+        g2 = d2.copy()
+        d2 = f2.copy()
+
+        tmp_signal = yc + 1j * ys
+
+        if t_idx == rand_t:
+            f2 = tmp_signal.copy()
+            d2 = np.ones(n_ch, dtype=np.complex128) + 1j * np.ones(n_ch, dtype=np.complex128)
+        else:
+            if t_idx == rand_t + 1:
+                f2 = 2 * beta * np.cos(tt) * d2 + tmp_signal
+            else:
+                f2 = 2 * beta * np.cos(tt) * d2 - (beta ** 2) * g2 + tmp_signal
+
+        c = np.cos(tt * t_idx) * f2.real + np.sin(tt * t_idx) * f2.imag
+        s = np.cos(tt * t_idx) * f2.imag - np.sin(tt * t_idx) * f2.real
+
+        phase = np.arctan2(s, c)
+        phase = np.nan_to_num(phase)
+        phase = np.where(phase < -np.pi / 4, phase + 2 * np.pi, phase)
+        phase = np.where(phase > 9 * np.pi / 4, phase - 2 * np.pi, phase)
+
+        if eeg_phase_t is not None:
+            ph = np.asarray(eeg_phase_t, dtype=np.float64).ravel()
+            if ph.size < t:
+                ph = np.pad(ph, (0, t - ph.size))
+            phase = phase - ph[t_idx]
+
+        wm = 255 * phase / 2 / math.pi
+        wm[wm > 255] = 255
+        wm[wm < 0] = 0
+
+        fi_lin = (wm * np.pi * 2) / 255
+
+        if apply_hist_norm:
+            try:
+                coord1 = np.where(
+                    fi_lin < np.pi,
+                    (fi_lin / np.pi * 2 - 1) * (-1),
+                    ((fi_lin - np.pi) / np.pi * 2 - 1),
+                )
+                coord2 = np.where(
+                    fi_lin < np.pi / 2,
+                    (fi_lin / np.pi / 2),
+                    np.where(
+                        fi_lin > 3 * np.pi / 2,
+                        ((fi_lin - 1.5 * np.pi) / np.pi * 2) - 1,
+                        ((fi_lin - 0.5 * np.pi) * 2 / np.pi - 1) * (-1),
+                    ),
+                )
+                hist, bin_centers = histogram(coord1, normalize=False)
+                hist2, bin_centers2 = histogram(coord2, normalize=False)
+
+                mx_sp = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
+                ver = hist2 / (np.sum(hist2) + 1e-12)
+                mo = np.sum(bin_centers2 * ver)
+                dis = np.abs(mo - mx_sp)
+                pr1 = np.min(dis)
+
+                mx_sp2 = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
+                ver2 = hist2 / (np.sum(hist2) + 1e-12)
+                mo = np.sum(bin_centers2 * ver2)
+                dis2 = np.abs(mo - mx_sp2)
+                x = np.min(dis2)
+
+                idx_m = np.argmin(np.abs(dis2 - x))
+                pr2 = bin_centers2[idx_m]
+
+                moment = np.where(
+                    pr1 < 0,
+                    np.arctan((pr2 / pr1)) + np.pi,
+                    np.where(pr2 >= 0, np.arctan((pr2 / pr1)), np.arctan((pr2 / pr1)) + 2 * np.pi),
+                )
+                moment = float(np.asarray(moment).ravel()[0])
+
+                if np.pi / 4 <= moment <= np.pi * 2 - np.pi / 4:
+                    fi_tmp = fi_lin - moment + 0.5 * np.pi * 0.5
+                elif moment > np.pi * 2 - np.pi / 4:
+                    fi_lin_adj = np.where(fi_lin < np.pi / 4, fi_lin + 2 * np.pi, fi_lin)
+                    fi_tmp = fi_lin_adj - moment + 0.5 * np.pi * 0.5
+                else:
+                    fi_tmp = fi_lin - 2 * np.pi - moment + 0.5 * np.pi * 0.5
+
+                fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
+                fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
+                fi_tmp = np.clip(fi_tmp, 0, np.pi)
+                l_kadr = fi_tmp * 255 / np.pi
+                lmin, lmax = np.min(l_kadr), np.max(l_kadr)
+                l_kadr = 255 * (l_kadr - lmin) / (lmax - lmin + 1e-12)
+            except (ValueError, IndexError, ZeroDivisionError):
+                l_kadr = wm.astype(np.float64)
+        else:
+            l_kadr = wm.astype(np.float64)
+
+        out[:, t_idx] = l_kadr.astype(np.float32)
+
+    return out
+
+
+def embed(folder_orig_image, folder_to_save, binary_image, amplitude, tt, var,
+          st_qr_override=None, eeg_phase=None):
+    """
+    Procedure embedding
+    :param binary_image: embedding code (путь к PNG, если st_qr_override не задан)
+    :param folder_orig_image: the folder from which the original images are taken
+    :param folder_to_save: the folder where the images from the watermark are saved
+    :param amplitude: embedding amplitude
+    :param tt: reference frequency parameter
+    :param st_qr_override: опционально — 2D массив паттерна (как Y после main2)
+    :param eeg_phase: опционально — (N,) добавка к фазе в радианах на каждый кадр
+    """
+
+    fi = math.pi / 2 / 255
+    if st_qr_override is not None:
+        st_qr = np.asarray(st_qr_override, dtype=np.float32)
+    else:
+        st_qr = cv2.imread(binary_image)
+        st_qr = cv2.cvtColor(st_qr, cv2.COLOR_RGB2YCrCb)[:, :, 0]
+
+    # data_length = st_qr[:, :, 0].size
+    # shuf_order = np.arange(data_length)
+    #
+    # np.random.seed(42)
+    # np.random.shuffle(shuf_order)
+    #
+    # # Expand the binary image into a string
+    # st_qr_1d = st_qr[:, :, 0].ravel()
+    # shuffled_data = st_qr_1d[shuf_order]  # Shuffle the original data
+    #
+    # # 1d-string in the image
+    # pict = np.resize(shuffled_data, (1057, 1920))
+    # # the last elements are uninformative. Therefore, we make zeros
+    # pict[-1, 256 - 1920:] = 0
+
+    images = [img for img in os.listdir(folder_orig_image)
+              if img.endswith(".png")]
+
+    # The list should be sorted by numbers after the name
+    sort_name_img = sort_spis(images, "frame")[:total_count]
+    cnt = 0
+
+    diff_neighb = []
+
+    while cnt < len(sort_name_img):
+        # Reads in BGR format
+        imgg = cv2.imread(folder_orig_image + sort_name_img[cnt]).astype('float32')
+        # translation to the YCrCb space
+        a = cv2.cvtColor(imgg, cv2.COLOR_BGR2YCrCb)
+
+        def_img = np.copy(a)
+        # a = a.astype(float)
+
+        temp = fi * st_qr
+        # A*sin(m * teta + fi) — как в main2; при EEG добавляем фазу кадра
+        phase_add = 0.0
+        if eeg_phase is not None and cnt < len(eeg_phase):
+            phase_add = float(eeg_phase[cnt])
+        wm = np.array((amplitude * np.sin(cnt * tt + temp + phase_add)))
+
+        # Embedding in the Y-channel
+        for row_ind in range(0, a.shape[0], st_qr.shape[0]):
+            for col_ind in range(0, a.shape[1], st_qr.shape[0]):
+                if ((a.shape[0] - row_ind) >= st_qr.shape[0]) and (
+                        (a.shape[1] - col_ind) >= st_qr.shape[0]):
+                    def_img[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0], 0] = np.where(
+                        np.float32(a[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0],
+                                   0] + wm) > 255,
+                        255,
+                        np.where(a[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0],
+                                 0] + wm < 0, 0,
+                                 np.float32(
+                                     a[row_ind:row_ind + st_qr.shape[0], col_ind:col_ind + st_qr.shape[0],
+                                     0] + wm)))
+                elif ((a.shape[0] - row_ind) < st_qr.shape[0]) and (
+                        (a.shape[1] - col_ind) >= st_qr.shape[0]):
+                    def_img[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] = np.where(
+                        np.float32(
+                            a[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] + wm[
+                                                                                         :a.shape[0] - row_ind,
+                                                                                         :]) > 255,
+                        255,
+                        np.where(a[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] + wm[:a.shape[
+                                                                                                      0] - row_ind,
+                                                                                              :] < 0, 0,
+                                 np.float32(
+                                     a[row_ind:a.shape[0], col_ind:col_ind + st_qr.shape[0], 0] + wm[:a.shape[
+                                                                                                          0] - row_ind,
+                                                                                                  :])))
+                elif ((a.shape[0] - row_ind) >= st_qr.shape[0]) and (
+                        (a.shape[1] - col_ind) < st_qr.shape[0]):
+                    # print(wm[:, a.shape[1] - col_ind].shape)
+                    def_img[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] = np.where(
+                        np.float32(
+                            a[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] + wm[:, :a.shape[
+                                                                                                    1] - col_ind]) > 255,
+                        255,
+                        np.where(a[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] + wm[:, :a.shape[
+                                                                                                         1] - col_ind] < 0,
+                                 0,
+                                 np.float32(
+                                     a[row_ind:row_ind + st_qr.shape[0], col_ind:a.shape[1], 0] + wm[:, :a.shape[
+                                                                                                             1] - col_ind])))
+                else:
+                    def_img[row_ind:a.shape[0], col_ind:a.shape[1], 0] = np.where(
+                        np.float32(a[row_ind:a.shape[0], col_ind:a.shape[1], 0] + wm[
+                            a.shape[0] - row_ind, a.shape[1] - col_ind]) > 255,
+                        255,
+                        np.where(a[row_ind:a.shape[0], col_ind:a.shape[1], 0] + wm[
+                                                                                :a.shape[0] - row_ind,
+                                                                                :a.shape[1] - col_ind] < 0, 0,
+                                 np.float32(
+                                     a[row_ind:a.shape[0], col_ind:a.shape[1], 0] + wm[:
+                                                                                       a.shape[0] - row_ind,
+                                                                                    :a.shape[1] - col_ind])))
+        # a[20:1060, 440:1480, 0] = np.where(np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0]) > 255, 255,
+        #                                    np.where(a[20:1060, 440:1480, 0] + wm[:, :, 0] < 0, 0,
+        #                                             np.float32(a[20:1060, 440:1480, 0] + wm[:, :, 0])))
+        # diff_neighb.append((def_img - a)[100, 100, 0])
+        tmp = cv2.cvtColor(def_img, cv2.COLOR_YCrCb2BGR)
+
+        row, col, ch = tmp.shape
+        mean = 0
+        sigma = var ** 0.5
+        gauss = np.random.normal(mean, sigma, (row, col, ch))
+        gauss = gauss.reshape(tmp.shape)
+        noisy = np.clip(tmp + gauss, 0, 255)
+
+        # Converting the YCrCb matrix to BGR
+        img_path = os.path.join(folder_to_save)
+        cv2.imwrite(img_path + "frame" + str(cnt) + ".png", noisy)
+
+        if cnt % 170 == 0:
+            print("wm embed", cnt)
+
+        cnt += 1
+    print(diff_neighb)
+
+
+def read2list(file):
+    """
+
+    :param file: file which transform to list
+    :return: list of values
+    """
+    # opening the file in utf-8 reading mode
+    file = open(file, 'r', encoding='utf-8')
+    # we read all the lines and delete the newline characters
+    lines = file.readlines()
+    lines = [line.rstrip('\n') for line in lines]
+    file.close()
+
+    return lines
+
+
+def extract(alf, beta, tt, size_wm, rand_fr, shift_qr):
+    """
+    Procedure embedding
+    :param shift_qr: shift for spectral WM from (0,0)
+    :param alf: primary smoothing parameter
+    :param beta: primary smoothing parameter0
+    :param tt:reference frequency
+    :param size_wm: side of embedding watermark
+    :param rand_fr: the frame from which the extraction begins
+    :return: the path to the final image
+    """
+    PATH_VIDEO = r'D:/pythonProject/phase_wm\frames_after_emb\RB_codec.avi'
+
+    count = read_video(PATH_VIDEO, 'D:/pythonProject/phase_wm/extract/', total_count)
+    psnr_full = 0
+    for i in range(50):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/extract/frame" + str(i) + ".png")
+
+        psnr_full += (cv2.PSNR(image1, image2))
+
+    print("A = ", ampl, "PSNR: ", psnr_full / 50)
+    cnt = int(rand_fr)
+    g = np.asarray([])
+    f = g.copy()
+    f1 = f.copy()
+    orig100 = []
+    smooth100 = []
+
+    while cnt < total_count:
+        arr = io.imread(r"D:/pythonProject/phase_wm\extract/frame" + str(cnt) + ".png").astype('float32')
+        orig100.append(cv2.cvtColor(arr, cv2.COLOR_BGR2YCrCb)[100, 100, 0])
+        d1 = f1
+        if cnt == rand_fr:
+            f1 = arr.astype('float32')
+            d1 = np.zeros((1080, 1920))
+        # elif cnt == change_sc[scene-1] + 1:
+        else:
+            f1 = np.float32(d1) * alf + np.float32(arr) * (1 - alf)
+        # else:
+        #     f1 = (1-alf)*(1-alf)*a+(1-alf)*alf*d1+alf*g1
+
+        np.clip(f1, 0, 255, out=f1)
+        smooth100.append(cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)[100, 100, 0])
+        img = Image.fromarray(f1.astype('uint8'))
+        if cnt % 100 == 0:
+            print("first smooth", cnt)
+        img.save(r'D:/pythonProject/phase_wm\extract\first_smooth/result' + str(cnt) + '.png')
+
+        cnt += 1
+
+    # print("orig", orig100)
+    # print("smooth", smooth100)
+    # plt.plot(orig100,label = "orig")
+    # plt.plot(smooth100,label = "smooth")
+    # plt.legend()
+    plt.show()
+    variance = []
+    cnt = int(rand_fr)
+    g = np.asarray([])
+    f = g.copy()
+    d = g.copy()
+
+    g2 = np.zeros((1024, 1920), dtype=np.complex_)
+    f2 = np.zeros((1024, 1920), dtype=np.complex_)
+    d2 = np.zeros((1024, 1920), dtype=np.complex_)
+
+    count = total_count
+
+    # reading a shuffled object
+
+    diff100 = []
+    while cnt < count:
+
+        arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/first_smooth/result" + str(cnt) + ".png"))
+        # arr = np.float32(cv2.imread(r"D:/pythonProject/phase_wm/extract/frame" + str(cnt) + ".png"))
+        a = cv2.cvtColor(arr, cv2.COLOR_BGR2YCrCb)
+
+        f1 = np.float32(
+            cv2.imread(r"D:/pythonProject/phase_wm\extract\frame" + str(cnt) + ".png"))
+        f1 = cv2.cvtColor(f1, cv2.COLOR_BGR2YCrCb)
+        # a1 = np.where(a < f1, f1 - a, a - f1)
+        a1 = a - f1
+
+        a1 = a1[0:1024, 0:1920, 0]
+
+        diff100.append(a1[100, 100])
+        # a1 = a[0:512, 0:512, 0]
+
+        # res_1d = np.ravel(a1)[:256 - 1920]
+        # start_qr = np.resize(res_1d, (size_wm, size_wm))
+        #
+        # unshuf_order = np.zeros_like(shuf_order)
+        # unshuf_order[shuf_order] = np.arange(start_qr.size)
+        # unshuffled_data = np.ravel(start_qr)[unshuf_order]
+        # matr_unshuf = np.resize(unshuffled_data, (size_wm, size_wm))
+        a = a1
+        # extraction of watermark
+        # a = a1[20:1060, 440:1480, 0]
+        g = np.copy(d)
+        d = np.copy(f)
+
+        if cnt == rand_fr:
+            f = np.copy(a1)
+            d = np.ones((1024, 1920))
+
+        else:
+            if cnt == rand_fr + 1:
+                f = 2 * beta * np.cos(tt) * np.float32(d) + np.float32(a)
+
+            else:
+                f = 2 * beta * np.cos(tt) * np.float32(d) - (beta ** 2) * np.float32(g) + np.float32(a)
+
+        # if cnt == rand_fr:
+        #     f2 = np.copy(a1)
+        #     d2 = np.ones((size_wm, size_wm))
+        #
+        # else:
+        #     if cnt == rand_fr + 1:
+        #         f2 = 2 * beta * np.cos(tt) * np.float32(d2) + np.float32(f)
+        #
+        #     else:
+        #         f2 = 2 * beta * np.cos(tt) * np.float32(d2) - (beta ** 2) * np.float32(g2) + np.float32(f)
+
+        yc = np.float32(f) - beta * np.cos(tt) * np.float32(d)
+        ys = beta * np.sin(tt) * np.float32(d)
+
+        g2 = np.copy(d2)
+        d2 = np.copy(g2)
+
+        tmp_signal = np.zeros((1024, 1920), dtype=np.complex_)
+        tmp_signal.real = yc
+        tmp_signal.imag = ys
+
+        if cnt == rand_fr:
+            f2 = tmp_signal
+            d2 = np.ones((1024, 1920), dtype=np.complex_)
+            d2.imag = np.ones((1024, 1920))
+
+        else:
+            if cnt == rand_fr + 1:
+                f2.real = 2 * beta * np.cos(tt) * np.float32(d2.real) + np.float32(tmp_signal.real)
+                f2.imag = 2 * beta * np.cos(tt) * np.float32(d2.imag) + np.float32(tmp_signal.imag)
+            else:
+                f2.real = 2 * beta * np.cos(tt) * np.float32(d2.real) - (beta ** 2) * np.float32(g2.real) + np.float32(
+                    tmp_signal.real)
+                f2.imag = 2 * beta * np.cos(tt) * np.float32(d2.imag) - (beta ** 2) * np.float32(g2.imag) + np.float32(
+                    tmp_signal.imag)
+
+        # g3 = np.copy(d3)
+        # d3 = np.copy(g3)
+        #
+        # if cnt == rand_fr:
+        #     f3 = tmp_signal
+        #     d3 = np.ones((1024, 1920), dtype=np.complex_)
+        #     d3.imag = np.ones((1024, 1920))
+        #
+        # else:
+        #     if cnt == rand_fr + 1:
+        #         f3.real = 2 * beta * np.cos(tt) * np.float32(d3.real) + np.float32(f2.real)
+        #         f3.imag = 2 * beta * np.cos(tt) * np.float32(d3.imag) + np.float32(f2.imag)
+        #     else:
+        #         f3.real = 2 * beta * np.cos(tt) * np.float32(d3.real) - (beta ** 2) * np.float32(g3.real) + np.float32(
+        #             f2.real)
+        #         f3.imag = 2 * beta * np.cos(tt) * np.float32(d3.imag) - (beta ** 2) * np.float32(g3.imag) + np.float32(
+        #             f2.imag)
+        #
+        # c = np.cos(tt * cnt) * np.float32(f3.real) + np.sin(tt * cnt) * np.float32(f3.imag)
+        # s = np.cos(tt * cnt) * np.float32(f3.imag) - np.sin(tt * cnt) * np.float32(f3.real)
+
+        c = np.cos(tt * cnt) * np.float32(f2.real) + np.sin(tt * cnt) * np.float32(f2.imag)
+        s = np.cos(tt * cnt) * np.float32(f2.imag) - np.sin(tt * cnt) * np.float32(f2.real)
+
+        # c = np.cos(tt * cnt) * np.float32(yc) + np.sin(tt * cnt) * np.float32(ys)
+        # s = np.cos(tt * cnt) * np.float32(ys) - np.sin(tt * cnt) * np.float32(yc)
+
+        try:
+            fi = np.where(c < 0, np.arctan((s / c)) + np.pi,
+                          np.where(s >= 0, np.arctan((s / c)), np.arctan((s / c)) + 2 * np.pi))
+        except ZeroDivisionError:
+            fi = np.full(f.shape, 255)
+        fi = np.nan_to_num(fi)
+        fi = np.where(fi < -np.pi / 4, fi + 2 * np.pi, fi)
+        fi = np.where(fi > 9 * np.pi / 4, fi - 2 * np.pi, fi)
+
+        wm = 255 * fi / 2 / math.pi
+
+        wm[wm > 255] = 255
+        wm[wm < 0] = 0
+
+        a1 = wm
+        # # a1 = cv2.cvtColor(a1, cv2.COLOR_YCrCb2RGB)
+        # img = Image.fromarray(big2small(a1).astype('uint8'))
+        # img.save(r'D:/pythonProject/phase_wm\extract/wm/result' + str(cnt) + '.png')
+        # bringing to the operating range
+
+        # l_kadr = io.imread(r'D:/pythonProject/phase_wm\extract/wm/result' + str(cnt) + '.png')
+        # compr= l_kadr==a1
+        # fi = np.copy(l_kadr)
+        fi = (a1 * np.pi * 2) / 255
+
+        coord1 = np.where(fi < np.pi, (fi / np.pi * 2 - 1) * (-1), ((fi - np.pi) / np.pi * 2 - 1))
+        coord2 = np.where(fi < np.pi / 2, (fi / np.pi / 2),
+                          np.where(fi > 3 * np.pi / 2, ((fi - 1.5 * np.pi) / np.pi * 2) - 1,
+                                   ((fi - 0.5 * np.pi) * 2 / np.pi - 1) * (-1)))
+
+        # noinspection PyTypeChecker
+        hist, bin_centers = histogram(coord1, normalize=False)
+        # noinspection PyTypeChecker
+        hist2, bin_centers2 = histogram(coord2, normalize=False)
+
+        mx_sp = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
+        ver = hist2 / np.sum(hist)
+        mo = np.sum(bin_centers2 * ver)
+        dis = np.abs(mo - mx_sp)
+        pr1 = np.min(dis)
+
+        mx_sp2 = np.arange(bin_centers2[0], bin_centers2[-1], bin_centers2[1] - bin_centers2[0])
+        ver2 = hist2 / np.sum(hist2)
+        mo = np.sum(bin_centers2 * ver2)
+        dis2 = np.abs(mo - mx_sp2)
+        x = np.min(dis2)
+
+        idx = np.argmin(np.abs(dis2 - x))
+        pr2 = bin_centers2[idx]
+
+        moment = np.where(pr1 < 0, np.arctan((pr2 / pr1)) + np.pi,
+                          np.where(pr2 >= 0, np.arctan((pr2 / pr1)), np.arctan((pr2 / pr1)) + 2 * np.pi))
+
+        if np.pi / 4 <= moment <= np.pi * 2 - np.pi / 4:
+            fi_tmp = fi - moment + 0.5 * np.pi * 0.5
+
+        elif moment > np.pi * 2 - np.pi / 4:
+            fi = np.where(fi < np.pi / 4, fi + 2 * np.pi, fi)
+            fi_tmp = fi - moment + 0.5 * np.pi * 0.5
+
+        else:
+            fi_tmp = fi - 2 * np.pi - moment + 0.5 * np.pi * 0.5
+
+        fi_tmp = np.where(fi_tmp < -np.pi / 4, fi_tmp + 2 * np.pi, fi_tmp)
+        fi_tmp = np.where(fi_tmp > 9 * np.pi / 4, fi_tmp - 2 * np.pi, fi_tmp)
+        fi_tmp[fi_tmp < 0] = 0
+        fi_tmp[fi_tmp > np.pi] = np.pi
+        l_kadr = fi_tmp * 255 / np.pi
+
+        l_kadr = 255 * (l_kadr - np.min(l_kadr)) / (np.max(l_kadr) - np.min(l_kadr))
+
+        img = Image.fromarray(l_kadr.astype('uint8'))
+        img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas/result" + str(cnt) + ".png")
+
+        test_var = np.zeros((size_wm, size_wm))
+        for row_ind in range(0, l_kadr.shape[0] - size_wm, size_wm):
+            for col_ind in range(0, l_kadr.shape[1] - size_wm, size_wm):
+                test_var += l_kadr[row_ind:row_ind + size_wm, col_ind:col_ind + size_wm] / 6
+
+        variance.append(np.var(test_var - img_wm))
+        bin_qr_spector = np.zeros((49, 49))
+        count_quadr = 0
+        if cnt % 1 == 0:
+            # ser6 = []
+            spector = np.zeros((size_wm, size_wm))
+            for row_ind in range(0, l_kadr.shape[0] - size_wm + 1, 16):
+                for col_ind in range(0, l_kadr.shape[1] - size_wm + 1, 16):
+                    # print(row_ind, col_ind, l_kadr.shape)
+                    spector += check_spatial2spectr(l_kadr[row_ind:row_ind + size_wm, col_ind:col_ind + size_wm]) / 8
+
+                    count_quadr += 1
+            # tmp_bin_spector = binarize_qr(spector, shift_qr)
+            # ser6.append(compare_qr(tmp_bin_spector,
+            #                        io.imread(
+            #                            r"D:\pythonProject/Phase_WM_Clear/data/check_ifft_wm_1024_shift_0_49"
+            #                            r".png"),
+            #                        shift_qr))
+            # bin_qr_spector += tmp_bin_spector
+
+            # bin_qr_spector = np.where(bin_qr_spector > np.mean(bin_qr_spector), 255, 0)
+            stop_kadr1.append(round(
+                compare_qr(spector,
+                           io.imread(
+                               r"D:/pythonProject/Phase_WM_Clear/data/attempt_new_check_ifft_wm_1024_shift_0_49.png"),
+                           shift_qr, cnt), 5))
+
+            if len(vot_sp) >= 10 and all(x > 0.991 for x in vot_sp[-10:]):
+                return stop_kadr1, vot_sp
+
+            if cnt % 10 == 9:
+                v = vot_by_variance(r"D:/pythonProject/phase_wm\extract\after_normal_phas_bin", max(0, cnt - 2000), cnt,
+                                    0.045)
+                vot_sp.append(round(max(v, 1 - v), 5))
+                if cnt % 100 == 99:
+                    print(ampl, shift, bitr, alf, cnt, stop_kadr1[-20:])
+                    print("after voting", cnt, "Shift ", shift, "Bitrate =", bitr, tt, vot_sp)
+
+            # if cnt % 200 == 199:
+            #     # print(max(ser6), min(ser6), np.mean(ser6))
+            #     # print(ser6)
+            #     img = Image.fromarray(spector.astype('uint8'))
+            #     img.save(r"D:/pythonProject/phase_wm\extract/after_normal_phas_bin/result" + str(cnt) + ".png")
+            #     print(ampl, alf, cnt, stop_kadr1)
+            # stop_kadr1.append(ser6)
+
+        cnt += 1
+
+    return variance, stop_kadr1
+
+
+def generate_video(bitr, image_folder, st_frame):
+    """
+    Sequence of frames transform to compress video
+    :param image_folder: folder for output frames
+
+    :param bitr: bitrate of output video
+    """
+
+    if bitr != "orig":
+        video_name = 'need_video.avi'
+    else:
+        video_name = "RB_codec.avi"
+    os.chdir(image_folder)
+
+    images = [img for img in os.listdir(image_folder)
+              if img.endswith(".png")]
+    sort_name_img = sort_spis(images, "frame")[st_frame:total_count + st_frame]
+    frame = cv2.imread(os.path.join(image_folder, images[0]))
+    height, width, layers = frame.shape
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+
+    video = cv2.VideoWriter(video_name, fourcc, 29.97, (width, height))
+
+    cnt = 0
+    for image in sort_name_img:
+        # if cnt % 300 == 0:
+
+        video.write(cv2.imread(os.path.join(image_folder, image)))
+        if cnt % 799 == 0:
+            print(cnt)
+        cnt += 1
+    cv2.destroyAllWindows()
+    video.release()
+
+    if bitr != "orig":
+        print("Codec worked")
+        os.system(f"ffmpeg -y -i D:/pythonProject/phase_wm/frames_after_emb/need_video.avi -b:v {bitr}M -vcodec"
+                  f" mpeg2video  D:/pythonProject/phase_wm/frames_after_emb/RB_codec.avi")
+
+
+def vot_by_variance(path_imgs, start, end, treshold):
+    var_list = csv2list(r"D:/pythonProject/\phase_wm/RB_disp.csv")[start:end]
+    sum_matrix = np.zeros((49, 49))
+    np_list = np.array(var_list)
+    need_ind = [i for i in range(len(np_list)) if np_list[i] > treshold]
+    i = start
+    count = 0
+    while i < end:
+        c_qr = io.imread(path_imgs + r"/result" + str(i) + ".png")
+        c_qr[c_qr == 255] = 1
+        if (i - start) not in need_ind:
+            sum_matrix += c_qr
+            count += 1
+        else:
+            i += 1
+        i += 1
+
+    sum_matrix[sum_matrix <= count * 0.5] = 0
+    sum_matrix[sum_matrix > count * 0.5] = 255
+
+    # img1 = Image.fromarray(sum_matrix.astype('uint8'))
+    # img1.save(r"D:/pythonProject/phase_wm\voting" + ".png")
+    orig_qr = io.imread(r"D:\pythonProject\Phase_WM_Clear/data/test_qr_49_49.png")
+    orig_qr = np.where(orig_qr > 127, 255, 0)
+
+    sr_matr = orig_qr == sum_matrix
+    k = np.count_nonzero(sr_matr)
+    comp = k / sr_matr.size
+
+    return comp
+
+
+if __name__ == '__main__':
+    total_count = 258
+    # l_fr = []
+    ampl = 3
+    teta = 2.9
+    alfa = 0.005
+    betta = 0.999
+    # teta = 2.6
+    bitr = "orig"
+    shift = 0
+    # input_folder = "D:/pythonProject/phase_wm/synthesis_video/"
+    input_folder = "D:/pythonProject/phase_wm/frames_orig_video/"
+    output_folder = "D:/pythonProject/phase_wm/frames_after_emb/"
+    # Как в main2: при необходимости распаковать кадры из видео перед embed
+    VIDEO_PATH = r"D:/pythonProject/phase_wm/cut_RealBarca120.mp4"
+    # True: паттерн из cwz_bits + фаза из EEG; False — в точности как main2 (только PATH_IMG)
+    USE_EEG_BITS_EMBED = True
+
+    PATH_IMG = f"D:/pythonProject/Phase_WM_Clear/data/attempt_new_spatial_spectr_1024_in_shift_{shift}_wm_49.png"
+    img_wm = io.imread(PATH_IMG)
+
+    EEG_PATH = r"D:\dk\eeg\files\S001\S001R01.edf"
+    raw = mne.io.read_raw_edf(EEG_PATH, preload=True, verbose=False)
+    eeg_data = raw.get_data()
+    fs = raw.info['sfreq']
+
+    print(f" Данные: {eeg_data.shape}")
+
+    # ЦВЗ — биты → тот же st_qr (размер как у PATH_IMG), что и маска в main2
+    np.random.seed(42)
+    cwz_bits = np.random.randint(0, 2, 64)
+    st_override = eeg_phi_kw = None
+    if USE_EEG_BITS_EMBED:
+        st_override = cwz_bits_to_st_qr(cwz_bits, PATH_IMG)
+        eeg_phi_kw = eeg_phase_per_frame(eeg_data, total_count, scale=0.05)
+
+    if os.path.isfile(VIDEO_PATH):
+        read_video(VIDEO_PATH, input_folder, total_count)
+
+    embed(input_folder, output_folder, PATH_IMG, ampl, teta, 0,
+          st_qr_override=st_override, eeg_phase=eeg_phi_kw)
+
+    psnr_full = 0
+    for i in range(100):
+        image1 = cv2.imread("D:\pythonProject\phase_wm/frames_after_emb/frame" + str(i) + ".png")
+        image2 = cv2.imread("D:\pythonProject\phase_wm/frames_orig_video/frame" + str(i) + ".png")
+
+        psnr_full += (cv2.PSNR(image1, image2))
+
+    print("A = ", ampl, "PSNR: ", psnr_full / 100)
+
+    rand_k = 0
+    vot_sp = []
+    stop_kadr1 = []
+    var_list, ext_values = extract(alfa, betta, teta, img_wm.shape[0], 0, shift)
+
+
+    # with open(
+    #         r'D:/pythonProject/Phase_WM_Clear\data/var_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
+    #             ampl) + '_bitr' + str(
+    #             bitr) + "_shift" + str(shift) + '.txt',
+    #         'w') as file:
+    #     for var in var_list:
+    #         file.write(str(var) + "\n")
+    #
+    # with open(
+    #         r'D:/pythonProject/Phase_WM_Clear\data/acc_list_49_1024_no_smooth_union_on_%d_center_' % shift + str(
+    #             ampl) + '_bitr' + str(
+    #             bitr) + "_shift" + str(shift) + '.txt',
+    #         'w') as file:
+    #     for val in ext_values:
+    #         file.write(str(val) + "\n")
+
+    # plt.plot(var_list)
+    # plt.grid(True)
+    # plt.show()
